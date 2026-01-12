@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PostSpark
 
-## Getting Started
+LinkedIn Post Generator for Solopreneurs & Coaches
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Personalized Onboarding** - 5-step flow: user type, niche, target audience, email, LinkedIn URL
+- **AI-Powered Ideas** - 10 personalized post ideas based on your profile
+- **3 Post Versions** - Professional, Casual, Storytelling tones for each idea
+- **Save & History** - Save favorite posts, view generation history
+- **Email System** - Welcome email + weekly ideas every Monday
+- **Dashboard** - Personal dashboard with saved posts and stats
+
+## Tech Stack
+
+- Next.js 16
+- TypeScript
+- Tailwind CSS
+- PostgreSQL (Neon)
+- Z.ai API (AI generation)
+- Apify (LinkedIn scraping)
+- SMTP2GO (emails)
+- PM2 (process manager)
+
+## Environment Variables
+
+```env
+APIFY_API_TOKEN=
+ZAI_API_KEY=
+DATABASE_URL=
+SMTP2GO_API_KEY=
+NEXT_PUBLIC_APP_URL=
+CRON_SECRET=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+node scripts/init-db.mjs  # Initialize database tables
+pnpm build
+pnpm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API Routes
 
-## Learn More
+- `POST /api/analyze` - Generate post ideas
+- `POST /api/write` - Write full posts (3 versions)
+- `POST /api/posts/save` - Save a post
+- `GET /api/dashboard?email=` - Get user dashboard data
+- `GET /api/cron/weekly?secret=` - Trigger weekly email job
 
-To learn more about Next.js, take a look at the following resources:
+## Live
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+https://postspark.pro
