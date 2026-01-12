@@ -115,7 +115,7 @@ export default function Home() {
   const canProceedStep4 = email.includes("@") && email.includes(".");
   const canProceedStep5 = emailDays.length > 0;
 
-  const toggleDay = (day: string) => {
+  const setFrequencyWithDays = (freq: string) => { setEmailFrequency(freq); if (freq === "daily") setEmailDays(["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]); else if (freq === "twice_weekly") setEmailDays(["tuesday","thursday"]); else if (freq === "weekly") setEmailDays(["tuesday"]); }; const toggleDay = (day: string) => {
     setEmailDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
@@ -371,7 +371,7 @@ export default function Home() {
                   { id: "twice_weekly", label: "2x Week", desc: "Recommended" },
                   { id: "weekly", label: "Weekly", desc: "Minimum" },
                 ].map((freq) => (
-                  <button key={freq.id} onClick={() => setEmailFrequency(freq.id)}
+                  <button key={freq.id} onClick={() => setFrequencyWithDays(freq.id)}
                     className={`p-3 rounded-lg text-sm font-medium transition-all text-center ${emailFrequency === freq.id ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>
                     <div>{freq.label}</div>
                     <div className="text-xs opacity-70">{freq.desc}</div>
