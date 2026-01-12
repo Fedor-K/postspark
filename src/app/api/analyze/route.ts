@@ -86,6 +86,9 @@ async function saveUserAndGeneration(
   linkedinUrl: string | null,
   linkedinName: string | null,
   linkedinHeadline: string | null,
+  emailFrequency: string,
+  emailDays: string,
+  emailTime: string,
   ideas: Topic[]
 ): Promise<{ user: Record<string, unknown>; isNew: boolean }> {
   let user = await sql`SELECT * FROM users WHERE email = ${email}`;
@@ -94,8 +97,8 @@ async function saveUserAndGeneration(
   if (user.length === 0) {
     const refCode = generateRefCode();
     user = await sql`
-      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, ref_code)
-      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${refCode})
+      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, ref_code, email_frequency, email_days, email_time)
+      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime})
       RETURNING *
     `;
     isNew = true;
@@ -104,7 +107,8 @@ async function saveUserAndGeneration(
       UPDATE users 
       SET user_type = ${userType}, niche = ${niche}, target_audience = ${targetAudience},
           linkedin_url = ${linkedinUrl}, linkedin_name = ${linkedinName}, 
-          linkedin_headline = ${linkedinHeadline}, last_active = NOW()
+          linkedin_headline = ${linkedinHeadline}, last_active = NOW(),
+          email_frequency = ${emailFrequency}, email_days = ${emailDays}, email_time = ${emailTime}
       WHERE email = ${email}
       RETURNING *
     `;
@@ -121,25 +125,22 @@ async function saveUserAndGeneration(
 function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
   console.log("Parsing AI response...");
   
-  // Remove markdown code blocks
   let cleaned = text
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
 
-  // Find JSON boundaries
   const startIdx = cleaned.indexOf("{");
   const endIdx = cleaned.lastIndexOf("}");
 
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     cleaned = cleaned.substring(startIdx, endIdx + 1);
     
-    // Fix common JSON issues
     cleaned = cleaned
-      .replace(/,\s*}/g, "}")  // Remove trailing commas before }
-      .replace(/,\s*]/g, "]")  // Remove trailing commas before ]
-      .replace(/([\r\n]+)/g, " ")  // Replace newlines with spaces
-      .replace(/\s+/g, " ");  // Normalize whitespace
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/([\r\n]+)/g, " ")
+      .replace(/\s+/g, " ");
 
     try {
       const parsed = JSON.parse(cleaned);
@@ -151,12 +152,10 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
     }
   }
 
-  // Manual extraction fallback
   console.log("Using manual field extraction");
   
   const topics: Topic[] = [];
   
-  // Try to extract titles using regex
   const titleMatches = text.matchAll(/"title"\s*:\s*"([^"]+)"/g);
   const descMatches = text.matchAll(/"description"\s*:\s*"([^"]+)"/g);
   const formatMatches = text.matchAll(/"format"\s*:\s*"([^"]+)"/g);
@@ -173,7 +172,6 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
     });
   }
 
-  // If still no topics, create generic ones
   if (topics.length === 0) {
     const defaultTopics = [
       { title: "The biggest mistake I see in my industry", description: "Share a common mistake and how to avoid it", format: "tips" },
@@ -198,7 +196,7 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
 
 export async function POST(request: NextRequest) {
   try {
-    const { linkedinUrl, userType, niche, targetAudience, email } = await request.json();
+    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime } = await request.json();
 
     if (!email || !userType || !niche || !targetAudience) {
       return NextResponse.json(
@@ -287,6 +285,9 @@ Return ONLY valid JSON in this exact format:
       linkedinUrl || null,
       profile?.name || null,
       profile?.headline || null,
+      emailFrequency || "weekly",
+      emailDays || "monday",
+      emailTime || "09:00",
       topics
     );
 

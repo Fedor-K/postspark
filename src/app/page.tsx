@@ -19,6 +19,21 @@ const NICHES = [
   "Legal", "Consulting", "Coaching", "Other"
 ];
 
+const DAYS_OF_WEEK = [
+  { id: "monday", label: "Mon" },
+  { id: "tuesday", label: "Tue" },
+  { id: "wednesday", label: "Wed" },
+  { id: "thursday", label: "Thu" },
+  { id: "friday", label: "Fri" },
+  { id: "saturday", label: "Sat" },
+  { id: "sunday", label: "Sun" },
+];
+
+const TIME_SLOTS = [
+  "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
+  "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"
+];
+
 interface Topic {
   hook: string;
   title: string;
@@ -53,6 +68,11 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   
+  // Email schedule state
+  const [emailFrequency, setEmailFrequency] = useState("weekly");
+  const [emailDays, setEmailDays] = useState<string[]>(["monday", "thursday"]);
+  const [emailTime, setEmailTime] = useState("09:00");
+  
   // Results state
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Results | null>(null);
@@ -77,6 +97,15 @@ export default function Home() {
   const canProceedStep2 = effectiveNiche !== "";
   const canProceedStep3 = targetAudience.length >= 10;
   const canProceedStep4 = email.includes("@") && email.includes(".");
+  const canProceedStep5 = emailDays.length > 0;
+
+  const toggleDay = (day: string) => {
+    setEmailDays(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    );
+  };
 
   const analyze = async () => {
     setLoading(true);
@@ -94,13 +123,16 @@ export default function Home() {
           userType,
           niche: effectiveNiche,
           targetAudience,
-          email
+          email,
+          emailFrequency,
+          emailDays: emailDays.join(","),
+          emailTime
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setResults(data);
-      setStep(6);
+      setStep(7);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Something went wrong";
       setError(errorMessage);
@@ -193,6 +225,8 @@ export default function Home() {
     }
   };
 
+  const totalSteps = 6;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
@@ -205,7 +239,7 @@ export default function Home() {
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </div>
           
-          {step < 6 && (
+          {step < 7 && (
             <>
               <h1 className="text-3xl md:text-5xl font-bold text-white mb-3">
                 LinkedIn Posts <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-400">That Get Clients</span>
@@ -218,10 +252,10 @@ export default function Home() {
         </div>
 
         {/* Progress Bar */}
-        {step < 6 && (
+        {step < 7 && (
           <div className="mb-8">
             <div className="flex justify-between mb-2">
-              {[1, 2, 3, 4, 5].map((s) => (
+              {[1, 2, 3, 4, 5, 6].map((s) => (
                 <div 
                   key={s}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
@@ -237,7 +271,7 @@ export default function Home() {
             <div className="h-2 bg-white/10 rounded-full">
               <div 
                 className="h-2 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full transition-all"
-                style={{ width: `${((step - 1) / 4) * 100}%` }}
+                style={{ width: `${((step - 1) / (totalSteps - 1)) * 100}%` }}
               />
             </div>
           </div>
@@ -303,19 +337,8 @@ export default function Home() {
               />
             )}
             <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                disabled={!canProceedStep2}
-                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Continue
-              </button>
+              <button onClick={() => setStep(1)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
+              <button onClick={() => setStep(3)} disabled={!canProceedStep2} className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">Continue</button>
             </div>
           </div>
         )}
@@ -333,19 +356,8 @@ export default function Home() {
               className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
             />
             <div className="flex gap-3">
-              <button
-                onClick={() => setStep(2)}
-                className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(4)}
-                disabled={!canProceedStep3}
-                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Continue
-              </button>
+              <button onClick={() => setStep(2)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
+              <button onClick={() => setStep(4)} disabled={!canProceedStep3} className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">Continue</button>
             </div>
           </div>
         )}
@@ -354,7 +366,7 @@ export default function Home() {
         {step === 4 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">Where should we send your ideas?</h2>
-            <p className="text-gray-400 text-center">We'll save your results and send weekly content ideas</p>
+            <p className="text-gray-400 text-center">We'll save your results and send content reminders</p>
             <input
               type="email"
               value={email}
@@ -363,25 +375,88 @@ export default function Home() {
               className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <div className="flex gap-3">
-              <button
-                onClick={() => setStep(3)}
-                className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStep(5)}
-                disabled={!canProceedStep4}
-                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Continue
-              </button>
+              <button onClick={() => setStep(3)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
+              <button onClick={() => setStep(5)} disabled={!canProceedStep4} className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">Continue</button>
             </div>
           </div>
         )}
 
-        {/* Step 5: LinkedIn URL (Optional) */}
+        {/* Step 5: Email Schedule */}
         {step === 5 && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white text-center">When should we remind you to post?</h2>
+            <p className="text-gray-400 text-center">We'll send fresh topic ideas on your schedule</p>
+            
+            {/* Frequency */}
+            <div className="space-y-3">
+              <label className="text-white font-medium">How often?</label>
+              <div className="flex gap-3">
+                {["daily", "weekly", "twice_weekly"].map((freq) => (
+                  <button
+                    key={freq}
+                    onClick={() => setEmailFrequency(freq)}
+                    className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${
+                      emailFrequency === freq
+                        ? "bg-orange-500 text-white"
+                        : "bg-white/10 text-gray-300 hover:bg-white/20"
+                    }`}
+                  >
+                    {freq === "daily" ? "Daily" : freq === "weekly" ? "Weekly" : "2x Week"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Days */}
+            <div className="space-y-3">
+              <label className="text-white font-medium">Which days?</label>
+              <div className="flex gap-2">
+                {DAYS_OF_WEEK.map((day) => (
+                  <button
+                    key={day.id}
+                    onClick={() => toggleDay(day.id)}
+                    className={`flex-1 py-3 rounded-lg text-sm font-medium transition-all ${
+                      emailDays.includes(day.id)
+                        ? "bg-orange-500 text-white"
+                        : "bg-white/10 text-gray-300 hover:bg-white/20"
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Time */}
+            <div className="space-y-3">
+              <label className="text-white font-medium">What time? (UTC)</label>
+              <select
+                value={emailTime}
+                onChange={(e) => setEmailTime(e.target.value)}
+                className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {TIME_SLOTS.map((time) => (
+                  <option key={time} value={time} className="bg-slate-800">{time}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Summary */}
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+              <p className="text-gray-300 text-sm">
+                📧 You'll receive post ideas on <span className="text-orange-400 font-medium">{emailDays.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(", ")}</span> at <span className="text-orange-400 font-medium">{emailTime} UTC</span>
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setStep(4)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
+              <button onClick={() => setStep(6)} disabled={!canProceedStep5} className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">Continue</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: LinkedIn URL (Optional) */}
+        {step === 6 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">Your LinkedIn profile (optional)</h2>
             <p className="text-gray-400 text-center">We'll analyze your profile for even more personalized ideas</p>
@@ -393,17 +468,8 @@ export default function Home() {
               className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <div className="flex gap-3">
-              <button
-                onClick={() => setStep(4)}
-                className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20"
-              >
-                Back
-              </button>
-              <button
-                onClick={analyze}
-                disabled={loading}
-                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50"
-              >
+              <button onClick={() => setStep(5)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
+              <button onClick={analyze} disabled={loading} className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
                 {loading ? "Generating ideas..." : "Generate My Ideas"}
               </button>
             </div>
@@ -427,19 +493,14 @@ export default function Home() {
         )}
 
         {/* Results */}
-        {step === 6 && results && (
+        {step === 7 && results && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-white">Your Post Ideas</h2>
                 <p className="text-gray-400">Click any idea to generate the full post</p>
               </div>
-              <button
-                onClick={startOver}
-                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 text-sm"
-              >
-                Start Over
-              </button>
+              <button onClick={startOver} className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 text-sm">Start Over</button>
             </div>
 
             <div className="bg-white/10 rounded-xl p-5 border border-white/20">
@@ -493,18 +554,14 @@ export default function Home() {
                                 : "bg-white/10 text-gray-300 hover:bg-white/20"
                             }`}
                           >
-                            {tone === "professional" ? "Professional" : 
-                             tone === "casual" ? "Casual" : "Story"}
+                            {tone === "professional" ? "Professional" : tone === "casual" ? "Casual" : "Story"}
                           </button>
                         ))}
                       </div>
                       
                       {/* Text Formatter */}
                       {editingPost?.index === i && (
-                        <TextFormatter 
-                          text={editingPost.content}
-                          onFormat={handleFormatText}
-                        />
+                        <TextFormatter text={editingPost.content} onFormat={handleFormatText} />
                       )}
                       
                       {/* Post Content / Editor */}
@@ -520,9 +577,7 @@ export default function Home() {
                           className="p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-white/20"
                           onClick={() => handleEditPost(i, getCurrentPostContent(i))}
                         >
-                          <p className="text-gray-200 whitespace-pre-wrap text-sm">
-                            {getCurrentPostContent(i)}
-                          </p>
+                          <p className="text-gray-200 whitespace-pre-wrap text-sm">{getCurrentPostContent(i)}</p>
                           <p className="text-gray-500 text-xs mt-2">Click to edit</p>
                         </div>
                       )}
@@ -534,37 +589,27 @@ export default function Home() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-                            if (!editingPost || editingPost.index !== i) {
-                              handleEditPost(i, getCurrentPostContent(i));
-                            }
-                            setShowHooks(showHooks ? false : true);
+                            if (!editingPost || editingPost.index !== i) handleEditPost(i, getCurrentPostContent(i));
+                            setShowHooks(!showHooks);
                             setShowCTAs(false);
                           }}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                            showHooks ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"
-                          }`}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showHooks ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
                         >
                           🪝 Add Hook
                         </button>
                         <button
                           onClick={() => {
-                            if (!editingPost || editingPost.index !== i) {
-                              handleEditPost(i, getCurrentPostContent(i));
-                            }
-                            setShowCTAs(showCTAs ? false : true);
+                            if (!editingPost || editingPost.index !== i) handleEditPost(i, getCurrentPostContent(i));
+                            setShowCTAs(!showCTAs);
                             setShowHooks(false);
                           }}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                            showCTAs ? "bg-pink-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"
-                          }`}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showCTAs ? "bg-pink-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
                         >
                           🎯 Add CTA
                         </button>
                         <button
                           onClick={() => setShowPreview(showPreview === i ? null : i)}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                            showPreview === i ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"
-                          }`}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showPreview === i ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
                         >
                           👁️ Preview
                         </button>
@@ -597,10 +642,7 @@ export default function Home() {
                       
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => copyPost(i, getCurrentPostContent(i))}
-                          className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20"
-                        >
+                        <button onClick={() => copyPost(i, getCurrentPostContent(i))} className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">
                           {copied === i ? "Copied!" : "Copy Post"}
                         </button>
                         <button
@@ -619,12 +661,9 @@ export default function Home() {
 
             {/* Dashboard CTA */}
             <div className="bg-gradient-to-r from-orange-500/20 to-pink-500/20 rounded-xl p-6 border border-orange-500/30 text-center">
-              <h3 className="text-white font-semibold mb-2">Want more ideas every week?</h3>
-              <p className="text-gray-300 text-sm mb-4">We'll send 5 fresh ideas to {email} every Monday</p>
-              <a
-                href={`/dashboard?email=${encodeURIComponent(email)}`}
-                className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90"
-              >
+              <h3 className="text-white font-semibold mb-2">Your reminders are set! 📧</h3>
+              <p className="text-gray-300 text-sm mb-4">We'll send fresh ideas to {email} on {emailDays.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(", ")} at {emailTime}</p>
+              <a href={`/dashboard?email=${encodeURIComponent(email)}`} className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90">
                 View My Dashboard
               </a>
             </div>
@@ -641,13 +680,13 @@ export default function Home() {
             </div>
             <div className="bg-white/5 rounded-xl p-5 border border-white/10 text-center">
               <div className="text-2xl mb-2">2</div>
-              <h3 className="font-semibold text-white mb-1">Get 10 Ideas</h3>
-              <p className="text-gray-400 text-sm">Personalized for your business</p>
+              <h3 className="font-semibold text-white mb-1">Set Your Schedule</h3>
+              <p className="text-gray-400 text-sm">Get reminders to post</p>
             </div>
             <div className="bg-white/5 rounded-xl p-5 border border-white/10 text-center">
               <div className="text-2xl mb-2">3</div>
-              <h3 className="font-semibold text-white mb-1">Choose Your Tone</h3>
-              <p className="text-gray-400 text-sm">3 versions of each post</p>
+              <h3 className="font-semibold text-white mb-1">Get Ideas + Posts</h3>
+              <p className="text-gray-400 text-sm">Ready to copy & publish</p>
             </div>
           </div>
         )}
