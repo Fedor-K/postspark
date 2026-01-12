@@ -213,8 +213,8 @@ export default function Home() {
   };
 
   const handleEditPost = (index: number, content: string) => setEditingPost({ index, content });
-  const handleHookSelect = (hook: string) => { if (editingPost) setEditingPost({ ...editingPost, content: hook + "\n\n" + editingPost.content }); setShowHooks(false); };
-  const handleCTASelect = (cta: string) => { if (editingPost) setEditingPost({ ...editingPost, content: editingPost.content + "\n\n" + cta }); setShowCTAs(false); };
+  const handleHookSelect = (hook: string) => { if (editingPost) { const parts = editingPost.content.split("\n\n"); parts[0] = hook; setEditingPost({ ...editingPost, content: parts.join("\n\n") }); } setShowHooks(false); };
+  const handleCTASelect = (cta: string) => { if (editingPost) { const parts = editingPost.content.split("\n\n"); parts[parts.length - 1] = cta; setEditingPost({ ...editingPost, content: parts.join("\n\n") }); } setShowCTAs(false); };
   const handleFormatText = (formattedText: string) => { if (editingPost) setEditingPost({ ...editingPost, content: formattedText }); };
 
   const getLocalTimeLabel = (time: string) => TIME_SLOTS.find(t => t.time === time)?.label || time;
