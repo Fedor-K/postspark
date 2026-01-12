@@ -1,5 +1,10 @@
 "use client";
 import { useState } from "react";
+import LinkedInPreview from "../components/LinkedInPreview";
+import CharacterCounter from "../components/CharacterCounter";
+import TextFormatter from "../components/TextFormatter";
+import HooksLibrary from "../components/HooksLibrary";
+import CTAsLibrary from "../components/CTAsLibrary";
 
 const USER_TYPES = [
   { id: "solopreneur", label: "Solopreneur", icon: "🚀", desc: "Building my own business" },
@@ -59,6 +64,12 @@ export default function Home() {
   const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
   const [copied, setCopied] = useState<number | null>(null);
   const [savedPosts, setSavedPosts] = useState<{[key: number]: boolean}>({});
+  
+  // Editor state
+  const [editingPost, setEditingPost] = useState<{index: number, content: string} | null>(null);
+  const [showPreview, setShowPreview] = useState<number | null>(null);
+  const [showHooks, setShowHooks] = useState(false);
+  const [showCTAs, setShowCTAs] = useState(false);
 
   const effectiveNiche = niche === "Other" ? customNiche : niche;
 
@@ -89,7 +100,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setResults(data);
-      setStep(6); // Results step
+      setStep(6);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Something went wrong";
       setError(errorMessage);
@@ -149,6 +160,37 @@ export default function Home() {
     setGeneratedPosts({});
     setSavedPosts({});
     setSelectedTone({});
+    setEditingPost(null);
+    setShowPreview(null);
+  };
+
+  const getCurrentPostContent = (index: number): string => {
+    if (editingPost?.index === index) return editingPost.content;
+    return generatedPosts[index]?.[selectedTone[index] as keyof PostVersions] || "";
+  };
+
+  const handleEditPost = (index: number, content: string) => {
+    setEditingPost({ index, content });
+  };
+
+  const handleHookSelect = (hook: string) => {
+    if (editingPost) {
+      setEditingPost({ ...editingPost, content: hook + "\n\n" + editingPost.content });
+    }
+    setShowHooks(false);
+  };
+
+  const handleCTASelect = (cta: string) => {
+    if (editingPost) {
+      setEditingPost({ ...editingPost, content: editingPost.content + "\n\n" + cta });
+    }
+    setShowCTAs(false);
+  };
+
+  const handleFormatText = (formattedText: string) => {
+    if (editingPost) {
+      setEditingPost({ ...editingPost, content: formattedText });
+    }
   };
 
   return (
@@ -235,7 +277,7 @@ export default function Home() {
         {/* Step 2: Niche */}
         {step === 2 && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white text-center">What\'s your niche?</h2>
+            <h2 className="text-2xl font-bold text-white text-center">What's your niche?</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {NICHES.map((n) => (
                 <button
@@ -312,7 +354,7 @@ export default function Home() {
         {step === 4 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">Where should we send your ideas?</h2>
-            <p className="text-gray-400 text-center">We\'ll save your results and send weekly content ideas</p>
+            <p className="text-gray-400 text-center">We'll save your results and send weekly content ideas</p>
             <input
               type="email"
               value={email}
@@ -342,7 +384,7 @@ export default function Home() {
         {step === 5 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">Your LinkedIn profile (optional)</h2>
-            <p className="text-gray-400 text-center">We\'ll analyze your profile for even more personalized ideas</p>
+            <p className="text-gray-400 text-center">We'll analyze your profile for even more personalized ideas</p>
             <input
               type="url"
               value={linkedinUrl}
@@ -441,7 +483,10 @@ export default function Home() {
                         {(["professional", "casual", "storytelling"] as const).map((tone) => (
                           <button
                             key={tone}
-                            onClick={() => setSelectedTone(prev => ({ ...prev, [i]: tone }))}
+                            onClick={() => {
+                              setSelectedTone(prev => ({ ...prev, [i]: tone }));
+                              setEditingPost(null);
+                            }}
                             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                               selectedTone[i] === tone
                                 ? "bg-orange-500 text-white"
@@ -454,23 +499,112 @@ export default function Home() {
                         ))}
                       </div>
                       
-                      {/* Post Content */}
-                      <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                        <p className="text-gray-200 whitespace-pre-wrap text-sm">
-                          {generatedPosts[i][selectedTone[i] as keyof PostVersions]}
-                        </p>
+                      {/* Text Formatter */}
+                      {editingPost?.index === i && (
+                        <TextFormatter 
+                          text={editingPost.content}
+                          onFormat={handleFormatText}
+                        />
+                      )}
+                      
+                      {/* Post Content / Editor */}
+                      {editingPost?.index === i ? (
+                        <textarea
+                          value={editingPost.content}
+                          onChange={(e) => setEditingPost({ index: i, content: e.target.value })}
+                          className="w-full p-4 bg-white/5 rounded-lg border border-white/10 text-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          rows={10}
+                        />
+                      ) : (
+                        <div 
+                          className="p-4 bg-white/5 rounded-lg border border-white/10 cursor-pointer hover:border-white/20"
+                          onClick={() => handleEditPost(i, getCurrentPostContent(i))}
+                        >
+                          <p className="text-gray-200 whitespace-pre-wrap text-sm">
+                            {getCurrentPostContent(i)}
+                          </p>
+                          <p className="text-gray-500 text-xs mt-2">Click to edit</p>
+                        </div>
+                      )}
+                      
+                      {/* Character Counter */}
+                      <CharacterCounter text={getCurrentPostContent(i)} />
+                      
+                      {/* Hooks & CTAs buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (!editingPost || editingPost.index !== i) {
+                              handleEditPost(i, getCurrentPostContent(i));
+                            }
+                            setShowHooks(showHooks ? false : true);
+                            setShowCTAs(false);
+                          }}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                            showHooks ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"
+                          }`}
+                        >
+                          🪝 Add Hook
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!editingPost || editingPost.index !== i) {
+                              handleEditPost(i, getCurrentPostContent(i));
+                            }
+                            setShowCTAs(showCTAs ? false : true);
+                            setShowHooks(false);
+                          }}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                            showCTAs ? "bg-pink-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"
+                          }`}
+                        >
+                          🎯 Add CTA
+                        </button>
+                        <button
+                          onClick={() => setShowPreview(showPreview === i ? null : i)}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                            showPreview === i ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"
+                          }`}
+                        >
+                          👁️ Preview
+                        </button>
                       </div>
+                      
+                      {/* Hooks Library */}
+                      {showHooks && editingPost?.index === i && (
+                        <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                          <HooksLibrary onSelect={handleHookSelect} userNiche={userType} />
+                        </div>
+                      )}
+                      
+                      {/* CTAs Library */}
+                      {showCTAs && editingPost?.index === i && (
+                        <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                          <CTAsLibrary onSelect={handleCTASelect} />
+                        </div>
+                      )}
+                      
+                      {/* LinkedIn Preview */}
+                      {showPreview === i && (
+                        <div className="p-4 bg-slate-800 rounded-lg">
+                          <LinkedInPreview 
+                            content={getCurrentPostContent(i)}
+                            authorName={results.profile?.name || "Your Name"}
+                            authorHeadline={results.profile?.headline}
+                          />
+                        </div>
+                      )}
                       
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => copyPost(i, generatedPosts[i][selectedTone[i] as keyof PostVersions])}
+                          onClick={() => copyPost(i, getCurrentPostContent(i))}
                           className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20"
                         >
                           {copied === i ? "Copied!" : "Copy Post"}
                         </button>
                         <button
-                          onClick={() => savePost(i, generatedPosts[i][selectedTone[i] as keyof PostVersions], selectedTone[i], topic.title)}
+                          onClick={() => savePost(i, getCurrentPostContent(i), selectedTone[i], topic.title)}
                           disabled={savedPosts[i]}
                           className="flex-1 py-2.5 bg-purple-500/20 text-purple-300 font-medium rounded-lg hover:bg-purple-500/30 disabled:opacity-50"
                         >
@@ -486,7 +620,7 @@ export default function Home() {
             {/* Dashboard CTA */}
             <div className="bg-gradient-to-r from-orange-500/20 to-pink-500/20 rounded-xl p-6 border border-orange-500/30 text-center">
               <h3 className="text-white font-semibold mb-2">Want more ideas every week?</h3>
-              <p className="text-gray-300 text-sm mb-4">We\'ll send 5 fresh ideas to {email} every Monday</p>
+              <p className="text-gray-300 text-sm mb-4">We'll send 5 fresh ideas to {email} every Monday</p>
               <a
                 href={`/dashboard?email=${encodeURIComponent(email)}`}
                 className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90"
