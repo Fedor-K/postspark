@@ -46,6 +46,26 @@ const TIME_SLOTS = [
   { time: "20:00", label: "8:00 PM", best: false },
 ];
 
+const TIMEZONES = [
+  { id: "America/Los_Angeles", label: "🇺🇸 Los Angeles (PT)", offset: "-8" },
+  { id: "America/Denver", label: "🇺🇸 Denver (MT)", offset: "-7" },
+  { id: "America/Chicago", label: "🇺🇸 Chicago (CT)", offset: "-6" },
+  { id: "America/New_York", label: "🇺🇸 New York (ET)", offset: "-5" },
+  { id: "Europe/London", label: "🇬🇧 London (GMT)", offset: "+0" },
+  { id: "Europe/Paris", label: "🇪🇺 Paris/Berlin (CET)", offset: "+1" },
+  { id: "Europe/Moscow", label: "🇷🇺 Moscow (MSK)", offset: "+3" },
+  { id: "Asia/Dubai", label: "🇦🇪 Dubai (GST)", offset: "+4" },
+  { id: "Asia/Singapore", label: "🇸🇬 Singapore (SGT)", offset: "+8" },
+  { id: "Asia/Tokyo", label: "🇯🇵 Tokyo (JST)", offset: "+9" },
+  { id: "Australia/Sydney", label: "🇦🇺 Sydney (AEST)", offset: "+11" },
+];
+
+const AUDIENCE_PRESETS = [
+  { id: "us", label: "🇺🇸 US audience", timezone: "America/New_York", time: "08:00" },
+  { id: "eu", label: "🇪🇺 Europe audience", timezone: "Europe/London", time: "08:00" },
+  { id: "global", label: "🌍 Global (US+EU)", timezone: "America/New_York", time: "14:00" },
+];
+
 interface Topic { hook: string; title: string; description: string; format: string; }
 interface Profile { name: string; headline: string; }
 interface Results { profile: Profile; niche: string; topics: Topic[]; }
@@ -63,7 +83,8 @@ export default function Home() {
   const [emailFrequency, setEmailFrequency] = useState("twice_weekly");
   const [emailDays, setEmailDays] = useState<string[]>(["tuesday", "thursday"]);
   const [emailTime, setEmailTime] = useState("08:00");
-  const [timezone, setTimezone] = useState("UTC");
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [detectedTimezone, setDetectedTimezone] = useState("");
   
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Results | null>(null);
@@ -80,14 +101,11 @@ export default function Home() {
   const [showHooks, setShowHooks] = useState(false);
   const [showCTAs, setShowCTAs] = useState(false);
 
-  // Auto-detect timezone
   useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      setTimezone(tz);
-    } catch {
-      setTimezone("UTC");
-    }
+      setDetectedTimezone(tz);
+    } catch { /* ignore */ }
   }, []);
 
   const effectiveNiche = niche === "Other" ? customNiche : niche;
@@ -105,6 +123,24 @@ export default function Home() {
     setEmailFrequency("twice_weekly");
     setEmailDays(["tuesday", "thursday"]);
     setEmailTime("08:00");
+  };
+
+  const applyAudiencePreset = (preset: typeof AUDIENCE_PRESETS[0]) => {
+    setTimezone(preset.timezone);
+    setEmailTime(preset.time);
+    setEmailFrequency("twice_weekly");
+    setEmailDays(["tuesday", "thursday"]);
+  };
+
+  const useMyTimezone = () => {
+    if (detectedTimezone) {
+      const found = TIMEZONES.find(tz => tz.id === detectedTimezone);
+      if (found) {
+        setTimezone(found.id);
+      } else {
+        setTimezone(detectedTimezone);
+      }
+    }
   };
 
   const analyze = async () => {
@@ -161,13 +197,9 @@ export default function Home() {
 
   const savePost = async (index: number, content: string, tone: string, title: string) => {
     try {
-      await fetch("/api/posts/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, content, tone, title }),
-      });
+      await fetch("/api/posts/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, content, tone, title }) });
       setSavedPosts(prev => ({ ...prev, [index]: true }));
-    } catch (err) { console.error("Failed to save post", err); }
+    } catch (err) { console.error("Failed to save", err); }
   };
 
   const startOver = () => {
@@ -185,10 +217,8 @@ export default function Home() {
   const handleCTASelect = (cta: string) => { if (editingPost) setEditingPost({ ...editingPost, content: editingPost.content + "\n\n" + cta }); setShowCTAs(false); };
   const handleFormatText = (formattedText: string) => { if (editingPost) setEditingPost({ ...editingPost, content: formattedText }); };
 
-  const getLocalTimeLabel = (time: string) => {
-    const slot = TIME_SLOTS.find(t => t.time === time);
-    return slot?.label || time;
-  };
+  const getLocalTimeLabel = (time: string) => TIME_SLOTS.find(t => t.time === time)?.label || time;
+  const getTimezoneLabel = () => TIMEZONES.find(tz => tz.id === timezone)?.label || timezone;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -227,7 +257,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Step 1-4 remain the same */}
+        {/* Steps 1-4 */}
         {step === 1 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">Who are you?</h2>
@@ -282,25 +312,51 @@ export default function Home() {
           </div>
         )}
 
-        {/* Step 5: Email Schedule with Recommendations */}
+        {/* Step 5: Schedule with Timezone */}
         {step === 5 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">When should we remind you to post?</h2>
             
+            {/* Audience Presets */}
+            <div className="space-y-3">
+              <label className="text-white font-medium">Quick setup for your audience:</label>
+              <div className="grid grid-cols-3 gap-3">
+                {AUDIENCE_PRESETS.map((preset) => (
+                  <button key={preset.id} onClick={() => applyAudiencePreset(preset)}
+                    className="p-3 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-white hover:border-blue-400 transition-all">
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Timezone Selector */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-white font-medium">Target timezone:</label>
+                {detectedTimezone && (
+                  <button onClick={useMyTimezone} className="text-xs text-blue-400 hover:text-blue-300">
+                    Use my timezone ({detectedTimezone.split('/')[1]?.replace('_', ' ')})
+                  </button>
+                )}
+              </div>
+              <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+                {TIMEZONES.map((tz) => (
+                  <option key={tz.id} value={tz.id} className="bg-slate-800">{tz.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Recommendation Banner */}
             <div className="p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl border border-green-500/30">
               <div className="flex items-start gap-3">
-                <span className="text-2xl">💡</span>
+                <span className="text-xl">💡</span>
                 <div className="flex-1">
-                  <p className="text-green-400 font-semibold mb-1">Best times to post on LinkedIn:</p>
-                  <ul className="text-gray-300 text-sm space-y-1">
-                    <li>• <span className="text-white">Tuesday - Thursday</span> get highest engagement</li>
-                    <li>• <span className="text-white">7-8 AM</span> catches morning scrollers</li>
-                    <li>• <span className="text-white">12 PM</span> lunch break traffic</li>
-                    <li>• <span className="text-white">5-6 PM</span> end of workday wind-down</li>
-                  </ul>
-                  <button onClick={applyRecommended} className="mt-3 px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600">
-                    ✨ Apply Recommended (Tue & Thu, 8 AM)
+                  <p className="text-green-400 font-semibold text-sm mb-1">Best times to post:</p>
+                  <p className="text-gray-300 text-sm">Tue-Thu, 7-9 AM or 5-6 PM in your audience's timezone</p>
+                  <button onClick={applyRecommended} className="mt-2 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600">
+                    ✨ Apply Recommended
                   </button>
                 </div>
               </div>
@@ -311,9 +367,9 @@ export default function Home() {
               <label className="text-white font-medium">How often?</label>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { id: "daily", label: "Daily", desc: "For rapid growth" },
+                  { id: "daily", label: "Daily", desc: "Rapid growth" },
                   { id: "twice_weekly", label: "2x Week", desc: "Recommended" },
-                  { id: "weekly", label: "Weekly", desc: "Minimum viable" },
+                  { id: "weekly", label: "Weekly", desc: "Minimum" },
                 ].map((freq) => (
                   <button key={freq.id} onClick={() => setEmailFrequency(freq.id)}
                     className={`p-3 rounded-lg text-sm font-medium transition-all text-center ${emailFrequency === freq.id ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>
@@ -336,12 +392,11 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-500">Green dots = highest engagement days</p>
             </div>
 
             {/* Time */}
             <div className="space-y-3">
-              <label className="text-white font-medium">What time? <span className="text-gray-400 font-normal">({timezone})</span></label>
+              <label className="text-white font-medium">What time?</label>
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                 {TIME_SLOTS.map((slot) => (
                   <button key={slot.time} onClick={() => setEmailTime(slot.time)}
@@ -351,13 +406,12 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-500">Green dots = peak engagement times</p>
             </div>
 
             {/* Summary */}
             <div className="p-4 bg-white/5 rounded-xl border border-white/10">
               <p className="text-gray-300 text-sm">
-                📧 You'll receive post ideas on <span className="text-orange-400 font-medium">{emailDays.sort((a,b) => DAYS_OF_WEEK.findIndex(d=>d.id===a) - DAYS_OF_WEEK.findIndex(d=>d.id===b)).map(d => DAYS_OF_WEEK.find(day=>day.id===d)?.label).join(", ")}</span> at <span className="text-orange-400 font-medium">{getLocalTimeLabel(emailTime)}</span>
+                📧 Reminders on <span className="text-orange-400 font-medium">{emailDays.sort((a,b) => DAYS_OF_WEEK.findIndex(d=>d.id===a) - DAYS_OF_WEEK.findIndex(d=>d.id===b)).map(d => DAYS_OF_WEEK.find(day=>day.id===d)?.label).join(", ")}</span> at <span className="text-orange-400 font-medium">{getLocalTimeLabel(emailTime)}</span> <span className="text-gray-500">({getTimezoneLabel()})</span>
               </p>
             </div>
 
@@ -368,11 +422,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* Step 6: LinkedIn URL */}
+        {/* Step 6: LinkedIn */}
         {step === 6 && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white text-center">Your LinkedIn profile (optional)</h2>
-            <p className="text-gray-400 text-center">We'll analyze your profile for even more personalized ideas</p>
+            <p className="text-gray-400 text-center">We'll analyze your profile for more personalized ideas</p>
             <input type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourprofile" className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
             <div className="flex gap-3">
               <button onClick={() => setStep(5)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
@@ -386,14 +440,13 @@ export default function Home() {
         {loading && (
           <div className="text-center p-8 bg-white/5 rounded-xl border border-white/10">
             <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-orange-400 font-medium">Creating personalized ideas for you...</p>
-            <p className="text-gray-400 text-sm mt-2">This may take 30-60 seconds</p>
+            <p className="text-orange-400 font-medium">Creating personalized ideas...</p>
           </div>
         )}
 
         {error && <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 mb-8">{error}</div>}
 
-        {/* Results - Step 7 */}
+        {/* Results */}
         {step === 7 && results && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -414,10 +467,6 @@ export default function Home() {
                   <p className="text-gray-400 text-sm">{results.profile?.headline || `${userType} in ${effectiveNiche}`}</p>
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">{effectiveNiche}</span>
-                <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">{userType}</span>
-              </div>
             </div>
 
             <div className="space-y-4">
@@ -432,7 +481,7 @@ export default function Home() {
                   
                   {!generatedPosts[i] ? (
                     <button onClick={() => writePost(i, topic)} disabled={writingIndex === i} className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
-                      {writingIndex === i ? "Writing 3 versions..." : "Write This Post"}
+                      {writingIndex === i ? "Writing..." : "Write This Post"}
                     </button>
                   ) : (
                     <div className="space-y-4">
@@ -440,7 +489,7 @@ export default function Home() {
                         {(["professional", "casual", "storytelling"] as const).map((tone) => (
                           <button key={tone} onClick={() => { setSelectedTone(prev => ({ ...prev, [i]: tone })); setEditingPost(null); }}
                             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedTone[i] === tone ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>
-                            {tone === "professional" ? "Professional" : tone === "casual" ? "Casual" : "Story"}
+                            {tone === "professional" ? "Pro" : tone === "casual" ? "Casual" : "Story"}
                           </button>
                         ))}
                       </div>
@@ -461,9 +510,9 @@ export default function Home() {
                       
                       <div className="flex gap-2">
                         <button onClick={() => { if (!editingPost || editingPost.index !== i) handleEditPost(i, getCurrentPostContent(i)); setShowHooks(!showHooks); setShowCTAs(false); }}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showHooks ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>🪝 Add Hook</button>
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showHooks ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>🪝 Hook</button>
                         <button onClick={() => { if (!editingPost || editingPost.index !== i) handleEditPost(i, getCurrentPostContent(i)); setShowCTAs(!showCTAs); setShowHooks(false); }}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showCTAs ? "bg-pink-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>🎯 Add CTA</button>
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showCTAs ? "bg-pink-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>🎯 CTA</button>
                         <button onClick={() => setShowPreview(showPreview === i ? null : i)}
                           className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showPreview === i ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>👁️ Preview</button>
                       </div>
@@ -473,8 +522,8 @@ export default function Home() {
                       {showPreview === i && <div className="p-4 bg-slate-800 rounded-lg"><LinkedInPreview content={getCurrentPostContent(i)} authorName={results.profile?.name || "Your Name"} authorHeadline={results.profile?.headline} /></div>}
                       
                       <div className="flex gap-2">
-                        <button onClick={() => copyPost(i, getCurrentPostContent(i))} className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">{copied === i ? "Copied!" : "Copy Post"}</button>
-                        <button onClick={() => savePost(i, getCurrentPostContent(i), selectedTone[i], topic.title)} disabled={savedPosts[i]} className="flex-1 py-2.5 bg-purple-500/20 text-purple-300 font-medium rounded-lg hover:bg-purple-500/30 disabled:opacity-50">{savedPosts[i] ? "Saved!" : "Save Post"}</button>
+                        <button onClick={() => copyPost(i, getCurrentPostContent(i))} className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">{copied === i ? "Copied!" : "Copy"}</button>
+                        <button onClick={() => savePost(i, getCurrentPostContent(i), selectedTone[i], topic.title)} disabled={savedPosts[i]} className="flex-1 py-2.5 bg-purple-500/20 text-purple-300 font-medium rounded-lg hover:bg-purple-500/30 disabled:opacity-50">{savedPosts[i] ? "Saved!" : "Save"}</button>
                       </div>
                     </div>
                   )}
@@ -483,9 +532,9 @@ export default function Home() {
             </div>
 
             <div className="bg-gradient-to-r from-orange-500/20 to-pink-500/20 rounded-xl p-6 border border-orange-500/30 text-center">
-              <h3 className="text-white font-semibold mb-2">Your reminders are set! 📧</h3>
-              <p className="text-gray-300 text-sm mb-4">We'll send fresh ideas on {emailDays.sort((a,b) => DAYS_OF_WEEK.findIndex(d=>d.id===a) - DAYS_OF_WEEK.findIndex(d=>d.id===b)).map(d => DAYS_OF_WEEK.find(day=>day.id===d)?.label).join(", ")} at {getLocalTimeLabel(emailTime)}</p>
-              <a href={`/dashboard?email=${encodeURIComponent(email)}`} className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90">View My Dashboard</a>
+              <h3 className="text-white font-semibold mb-2">Reminders set! 📧</h3>
+              <p className="text-gray-300 text-sm mb-4">{emailDays.map(d => DAYS_OF_WEEK.find(day=>day.id===d)?.label).join(", ")} at {getLocalTimeLabel(emailTime)} ({getTimezoneLabel()})</p>
+              <a href={`/dashboard?email=${encodeURIComponent(email)}`} className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg hover:opacity-90">View Dashboard</a>
             </div>
           </div>
         )}
@@ -500,12 +549,12 @@ export default function Home() {
             <div className="bg-white/5 rounded-xl p-5 border border-white/10 text-center">
               <div className="text-2xl mb-2">2</div>
               <h3 className="font-semibold text-white mb-1">Set Your Schedule</h3>
-              <p className="text-gray-400 text-sm">Get reminders to post</p>
+              <p className="text-gray-400 text-sm">For your target audience</p>
             </div>
             <div className="bg-white/5 rounded-xl p-5 border border-white/10 text-center">
               <div className="text-2xl mb-2">3</div>
               <h3 className="font-semibold text-white mb-1">Get Ideas + Posts</h3>
-              <p className="text-gray-400 text-sm">Ready to copy & publish</p>
+              <p className="text-gray-400 text-sm">Ready to publish</p>
             </div>
           </div>
         )}
