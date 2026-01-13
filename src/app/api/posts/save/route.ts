@@ -11,14 +11,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and content are required" }, { status: 400 });
     }
 
-    // Get user by email
     const user = await sql`SELECT id FROM users WHERE email = ${email}`;
     
     if (user.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Save the post
     const savedPost = await sql`
       INSERT INTO saved_posts (user_id, idea_title, post_content, tone)
       VALUES (${user[0].id}, ${title || null}, ${content}, ${tone || "professional"})
@@ -29,6 +27,54 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Save post error:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to save post";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { id, content, tone, title } = await request.json();
+
+    if (!id || !content) {
+      return NextResponse.json({ error: "Post ID and content are required" }, { status: 400 });
+    }
+
+    const updatedPost = await sql`
+      UPDATE saved_posts 
+      SET post_content = ${content}, 
+          tone = ${tone || "professional"}, 
+          idea_title = ${title || null}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (updatedPost.length === 0) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ post: updatedPost[0] });
+  } catch (error: unknown) {
+    console.error("Update post error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to update post";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
+    }
+
+    await sql`DELETE FROM saved_posts WHERE id = ${id}`;
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    console.error("Delete post error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to delete post";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

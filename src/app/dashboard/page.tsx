@@ -85,6 +85,14 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [newIdeas, setNewIdeas] = useState<Idea[] | null>(null);
 
+  // Edit post modal state
+  const [editingPost, setEditingPost] = useState<SavedPost | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editTone, setEditTone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     checkSession();
   }, []);
@@ -202,12 +210,74 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(result.error);
       
       setNewIdeas(result.topics);
-      // Refresh dashboard to show new generation
       fetchDashboard(data.user.email);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to generate ideas");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const openEditModal = (post: SavedPost) => {
+    setEditingPost(post);
+    setEditContent(post.post_content);
+    setEditTitle(post.idea_title || "");
+    setEditTone(post.tone || "professional");
+  };
+
+  const closeEditModal = () => {
+    setEditingPost(null);
+    setEditContent("");
+    setEditTitle("");
+    setEditTone("");
+  };
+
+  const savePost = async () => {
+    if (!editingPost || !data) return;
+    setSaving(true);
+    
+    try {
+      const res = await fetch("/api/posts/save", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingPost.id,
+          content: editContent,
+          title: editTitle,
+          tone: editTone,
+        }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to save");
+      
+      closeEditModal();
+      fetchDashboard(data.user.email);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save post");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deletePost = async () => {
+    if (!editingPost || !data) return;
+    if (!confirm("Delete this post?")) return;
+    
+    setDeleting(true);
+    
+    try {
+      const res = await fetch(`/api/posts/save?id=${editingPost.id}`, {
+        method: "DELETE",
+      });
+      
+      if (!res.ok) throw new Error("Failed to delete");
+      
+      closeEditModal();
+      fetchDashboard(data.user.email);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete post");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -249,17 +319,10 @@ export default function Dashboard() {
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </Link>
           <div className="flex items-center gap-3">
-            <button
-              onClick={openGenerateModal}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90"
-            >
+            <button onClick={openGenerateModal} className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90">
               + New Ideas
             </button>
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50"
-            >
+            <button onClick={handleLogout} disabled={loggingOut} className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50">
               {loggingOut ? "..." : "Logout"}
             </button>
           </div>
@@ -273,19 +336,11 @@ export default function Dashboard() {
                 {data.user.linkedinName?.[0] || data.user.email[0].toUpperCase()}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">
-                  {data.user.linkedinName || "Your Dashboard"}
-                </h1>
-                <p className="text-gray-400">
-                  {data.user.linkedinHeadline || `${data.user.userType} in ${data.user.niche}`}
-                </p>
+                <h1 className="text-2xl font-bold text-white">{data.user.linkedinName || "Your Dashboard"}</h1>
+                <p className="text-gray-400">{data.user.linkedinHeadline || `${data.user.userType} in ${data.user.niche}`}</p>
                 <div className="flex gap-2 mt-2">
-                  <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">
-                    {data.user.niche}
-                  </span>
-                  <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">
-                    {data.user.userType}
-                  </span>
+                  <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">{data.user.niche}</span>
+                  <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">{data.user.userType}</span>
                 </div>
               </div>
             </div>
@@ -300,26 +355,12 @@ export default function Dashboard() {
 
         {/* Email Schedule Card */}
         <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl p-6 border border-blue-500/20 mb-8">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <span>📧</span> Email Reminders
-          </h2>
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><span>📧</span> Email Reminders</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-gray-500 text-xs uppercase mb-1">Frequency</p>
-              <p className="text-white font-medium">{formatFrequency(data.user.emailFrequency)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs uppercase mb-1">Days</p>
-              <p className="text-white font-medium">{formatDays(data.user.emailDays)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs uppercase mb-1">Time</p>
-              <p className="text-white font-medium">{formatTime(data.user.emailTime)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs uppercase mb-1">Timezone</p>
-              <p className="text-white font-medium">{formatTimezone(data.user.timezone)}</p>
-            </div>
+            <div><p className="text-gray-500 text-xs uppercase mb-1">Frequency</p><p className="text-white font-medium">{formatFrequency(data.user.emailFrequency)}</p></div>
+            <div><p className="text-gray-500 text-xs uppercase mb-1">Days</p><p className="text-white font-medium">{formatDays(data.user.emailDays)}</p></div>
+            <div><p className="text-gray-500 text-xs uppercase mb-1">Time</p><p className="text-white font-medium">{formatTime(data.user.emailTime)}</p></div>
+            <div><p className="text-gray-500 text-xs uppercase mb-1">Timezone</p><p className="text-white font-medium">{formatTimezone(data.user.timezone)}</p></div>
           </div>
         </div>
 
@@ -349,9 +390,7 @@ export default function Dashboard() {
           {data.savedPosts.length === 0 ? (
             <div className="bg-white/5 rounded-xl p-8 border border-white/10 text-center">
               <p className="text-gray-400 mb-4">No saved posts yet</p>
-              <button onClick={openGenerateModal} className="text-orange-400 hover:text-orange-300">
-                Generate ideas and save your favorite posts →
-              </button>
+              <button onClick={openGenerateModal} className="text-orange-400 hover:text-orange-300">Generate ideas and save your favorite posts →</button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -362,9 +401,12 @@ export default function Dashboard() {
                       <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">{post.tone}</span>
                       <span className="text-gray-500 text-xs">{formatDate(post.created_at)}</span>
                     </div>
-                    <button onClick={() => copyPost(post.id, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
-                      {copied === post.id ? "Copied!" : "Copy"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => openEditModal(post)} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded hover:bg-blue-500/30">Edit</button>
+                      <button onClick={() => copyPost(post.id, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
+                        {copied === post.id ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
                   </div>
                   {post.idea_title && <p className="text-orange-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
                   <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-4">{post.post_content}</p>
@@ -378,9 +420,7 @@ export default function Dashboard() {
         <div>
           <h2 className="text-xl font-bold text-white mb-4">Generation History</h2>
           {data.generations.length === 0 ? (
-            <div className="bg-white/5 rounded-xl p-8 border border-white/10 text-center">
-              <p className="text-gray-400">No generations yet</p>
-            </div>
+            <div className="bg-white/5 rounded-xl p-8 border border-white/10 text-center"><p className="text-gray-400">No generations yet</p></div>
           ) : (
             <div className="space-y-3">
               {data.generations.map((gen) => (
@@ -421,11 +461,9 @@ export default function Dashboard() {
                 <h2 className="text-xl font-bold text-white">Generate New Ideas</h2>
                 <button onClick={() => setShowGenerateModal(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
               </div>
-
               {!newIdeas ? (
                 <>
-                  <p className="text-gray-400 mb-6">Generate 10 new LinkedIn post ideas based on your profile. You can adjust your niche or target audience if needed.</p>
-                  
+                  <p className="text-gray-400 mb-6">Generate 10 new LinkedIn post ideas based on your profile.</p>
                   <div className="space-y-4 mb-6">
                     <div>
                       <label className="text-white text-sm font-medium mb-2 block">Niche</label>
@@ -433,20 +471,13 @@ export default function Dashboard() {
                         {NICHES.map(n => <option key={n} value={n} className="bg-slate-800">{n}</option>)}
                       </select>
                     </div>
-                    
                     <div>
                       <label className="text-white text-sm font-medium mb-2 block">Target Audience</label>
                       <textarea value={genAudience} onChange={(e) => setGenAudience(e.target.value)} rows={3} placeholder="Who do you help?" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
                     </div>
                   </div>
-
                   <button onClick={generateNewIdeas} disabled={generating} className="w-full py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
-                    {generating ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Generating...
-                      </span>
-                    ) : "Generate 10 Ideas"}
+                    {generating ? <span className="flex items-center justify-center gap-2"><span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Generating...</span> : "Generate 10 Ideas"}
                   </button>
                 </>
               ) : (
@@ -461,15 +492,59 @@ export default function Dashboard() {
                     ))}
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => setNewIdeas(null)} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">
-                      Generate More
-                    </button>
-                    <button onClick={() => setShowGenerateModal(false)} className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90">
-                      Done
-                    </button>
+                    <button onClick={() => setNewIdeas(null)} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Generate More</button>
+                    <button onClick={() => setShowGenerateModal(false)} className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90">Done</button>
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Post Modal */}
+      {editingPost && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Edit Post</h2>
+                <button onClick={closeEditModal} className="text-gray-400 hover:text-white text-2xl">×</button>
+              </div>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block">Title (optional)</label>
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Post title or hook" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                </div>
+                
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block">Tone</label>
+                  <div className="flex gap-2">
+                    {["professional", "casual", "storytelling"].map(tone => (
+                      <button key={tone} onClick={() => setEditTone(tone)} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${editTone === tone ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>
+                        {tone === "professional" ? "Pro" : tone === "casual" ? "Casual" : "Story"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block">Content</label>
+                  <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={12} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none font-mono text-sm" />
+                  <p className="text-gray-500 text-xs mt-1">{editContent.length} characters</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={deletePost} disabled={deleting} className="px-4 py-3 bg-red-500/20 text-red-400 font-medium rounded-lg hover:bg-red-500/30 disabled:opacity-50">
+                  {deleting ? "..." : "Delete"}
+                </button>
+                <button onClick={closeEditModal} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Cancel</button>
+                <button onClick={savePost} disabled={saving} className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
