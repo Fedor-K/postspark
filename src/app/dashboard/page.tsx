@@ -11,10 +11,16 @@ interface SavedPost {
   created_at: string;
 }
 
+interface Idea {
+  hook: string;
+  description: string;
+}
+
 interface Generation {
   id: number;
   createdAt: string;
   ideasCount: number;
+  ideas: Idea[];
 }
 
 interface User {
@@ -42,12 +48,12 @@ interface DashboardData {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [email, setEmail] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<number | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [expandedGen, setExpandedGen] = useState<number | null>(null);
 
   useEffect(() => {
     checkSession();
@@ -63,7 +69,6 @@ export default function Dashboard() {
         return;
       }
       
-      setEmail(result.user.email);
       fetchDashboard(result.user.email);
     } catch {
       router.push("/login");
@@ -109,6 +114,10 @@ export default function Dashboard() {
       day: "numeric",
       year: "numeric",
     });
+  };
+
+  const toggleGeneration = (id: number) => {
+    setExpandedGen(expandedGen === id ? null : id);
   };
 
   if (loading) {
@@ -199,7 +208,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
             <div className="text-3xl font-bold text-white">{data.stats.generationCount}</div>
-            <div className="text-gray-400 text-sm">Ideas Generated</div>
+            <div className="text-gray-400 text-sm">Sessions</div>
           </div>
           <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
             <div className="text-3xl font-bold text-white">{data.stats.savedCount}</div>
@@ -210,7 +219,7 @@ export default function Dashboard() {
             <div className="text-gray-400 text-sm">Total Ideas</div>
           </div>
           <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
-            <div className="text-3xl font-bold text-white">∞</div>
+            <div className="text-3xl font-bold text-orange-400">∞</div>
             <div className="text-gray-400 text-sm">Potential Reach</div>
           </div>
         </div>
@@ -270,18 +279,37 @@ export default function Dashboard() {
               <p className="text-gray-400">No generations yet</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {data.generations.map((gen) => (
-                <div key={gen.id} className="bg-white/5 rounded-lg p-4 border border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400">
-                      💡
+                <div key={gen.id} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+                  <button
+                    onClick={() => toggleGeneration(gen.id)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400">
+                        💡
+                      </div>
+                      <div className="text-left">
+                        <p className="text-white">{gen.ideasCount} ideas generated</p>
+                        <p className="text-gray-500 text-sm">{formatDate(gen.createdAt)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white">{gen.ideasCount} ideas generated</p>
-                      <p className="text-gray-500 text-sm">{formatDate(gen.createdAt)}</p>
+                    <span className="text-gray-400 text-xl">
+                      {expandedGen === gen.id ? "−" : "+"}
+                    </span>
+                  </button>
+                  
+                  {expandedGen === gen.id && gen.ideas && gen.ideas.length > 0 && (
+                    <div className="px-4 pb-4 space-y-3">
+                      {gen.ideas.map((idea, idx) => (
+                        <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                          <p className="text-orange-400 font-medium mb-1">{idea.hook}</p>
+                          <p className="text-gray-400 text-sm">{idea.description}</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       LIMIT 20
     `;
 
-    // Get generations history
+    // Get generations history with ideas
     const generations = await sql`
       SELECT id, created_at, ideas 
       FROM generations 
@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
         id: g.id,
         createdAt: g.created_at,
         ideasCount: Array.isArray(g.ideas) ? g.ideas.length : 0,
+        ideas: g.ideas || [],
       })),
       stats: {
         savedCount: Number(stats[0]?.saved_count || 0),
