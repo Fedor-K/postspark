@@ -1,7 +1,6 @@
 "use client";
-import { Suspense } from "react";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface SavedPost {
@@ -41,27 +40,39 @@ interface DashboardData {
   stats: Stats;
 }
 
-function DashboardContent() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  
+export default function Dashboard() {
+  const router = useRouter();
+  const [email, setEmail] = useState<string | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<number | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    if (email) {
-      fetchDashboard();
-    } else {
-      setError("Please provide your email to view your dashboard");
-      setLoading(false);
-    }
-  }, [email]);
+    checkSession();
+  }, []);
 
-  const fetchDashboard = async () => {
+  const checkSession = async () => {
     try {
-      const res = await fetch(`/api/dashboard?email=${encodeURIComponent(email!)}`);
+      const res = await fetch("/api/auth/session");
+      const result = await res.json();
+      
+      if (!res.ok || !result.user) {
+        router.push("/login");
+        return;
+      }
+      
+      setEmail(result.user.email);
+      fetchDashboard(result.user.email);
+    } catch {
+      router.push("/login");
+    }
+  };
+
+  const fetchDashboard = async (userEmail: string) => {
+    try {
+      const res = await fetch(`/api/dashboard?email=${encodeURIComponent(userEmail)}`);
       const result = await res.json();
       
       if (!res.ok) {
@@ -73,6 +84,16 @@ function DashboardContent() {
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+    } catch {
+      setLoggingOut(false);
     }
   };
 
@@ -130,12 +151,21 @@ function DashboardContent() {
             </div>
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </Link>
-          <Link 
-            href="/"
-            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90"
-          >
-            + New Ideas
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/"
+              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90"
+            >
+              + New Ideas
+            </Link>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50"
+            >
+              {loggingOut ? "..." : "Logout"}
+            </button>
+          </div>
         </div>
 
         {/* Profile Card */}
@@ -271,20 +301,5 @@ function DashboardContent() {
         PostSpark - LinkedIn Content for Solopreneurs & Coaches
       </footer>
     </div>
-  );
-}
-
-export default function Dashboard() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    }>
-      <DashboardContent />
-    </Suspense>
   );
 }

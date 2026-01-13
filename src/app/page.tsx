@@ -224,12 +224,12 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         {/* Header */}
-        <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-2 mb-5">
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-5"><div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">P</span>
             </div>
-            <span className="text-2xl font-bold text-white">PostSpark</span>
+            <span className="text-2xl font-bold text-white">PostSpark</span></div><a href="/login" className="px-4 py-2 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Login</a>
           </div>
           {step < 7 && (
             <>

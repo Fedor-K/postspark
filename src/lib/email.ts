@@ -2,29 +2,27 @@ interface EmailOptions {
   to: string;
   subject: string;
   html: string;
-  text?: string;
 }
 
-export async function sendEmail({ to, subject, html, text }: EmailOptions): Promise<boolean> {
+export async function sendEmail({ to, subject, html }: EmailOptions): Promise<boolean> {
   try {
-    const response = await fetch("https://api.smtp2go.com/v3/email/send", {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        api_key: process.env.SMTP2GO_API_KEY,
+        from: "PostSpark <hello@postspark.pro>",
         to: [to],
-        sender: "PostSpark <hello@postspark.pro>",
         subject,
-        html_body: html,
-        text_body: text || html.replace(/<[^>]*>/g, ""),
+        html,
       }),
     });
 
     const data = await response.json();
     
-    if (data.data?.succeeded > 0) {
+    if (response.ok) {
       console.log("Email sent successfully to:", to);
       return true;
     } else {
@@ -87,8 +85,7 @@ export function generateWelcomeEmail(name: string | null, ideas: Array<{title: s
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="font-size: 12px; color: #999; text-align: center;">
-    You're receiving this because you signed up at postspark.pro<br>
-    <a href="https://postspark.pro/unsubscribe" style="color: #999;">Unsubscribe</a>
+    You're receiving this because you signed up at postspark.pro
   </p>
 </body>
 </html>
@@ -129,7 +126,7 @@ export function generateWeeklyEmail(name: string | null, ideas: Array<{title: st
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="font-size: 12px; color: #999; text-align: center;">
-    <a href="https://postspark.pro/unsubscribe" style="color: #999;">Unsubscribe</a> from weekly emails
+    PostSpark Weekly Ideas
   </p>
 </body>
 </html>
