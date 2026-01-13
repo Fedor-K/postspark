@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import LinkedInPreview from "../components/LinkedInPreview";
 import CharacterCounter from "../components/CharacterCounter";
 import TextFormatter from "../components/TextFormatter";
@@ -72,6 +73,7 @@ interface Results { profile: Profile; niche: string; topics: Topic[]; }
 interface PostVersions { professional: string; casual: string; storytelling: string; }
 
 export default function Home() {
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [step, setStep] = useState(1);
   const [userType, setUserType] = useState("");
   const [niche, setNiche] = useState("");
@@ -100,6 +102,22 @@ export default function Home() {
   const [showPreview, setShowPreview] = useState<number | null>(null);
   const [showHooks, setShowHooks] = useState(false);
   const [showCTAs, setShowCTAs] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (res.ok && data.user) {
+          router.push("/dashboard");
+          return;
+        }
+      } catch {}
+      setCheckingAuth(false);
+    };
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
     try {
@@ -219,6 +237,14 @@ export default function Home() {
 
   const getLocalTimeLabel = (time: string) => TIME_SLOTS.find(t => t.time === time)?.label || time;
   const getTimezoneLabel = () => TIMEZONES.find(tz => tz.id === timezone)?.label || timezone;
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
