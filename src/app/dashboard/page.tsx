@@ -29,8 +29,13 @@ interface User {
   userType: string;
   niche: string;
   targetAudience: string;
+  linkedinUrl: string | null;
   linkedinName: string | null;
   linkedinHeadline: string | null;
+  emailFrequency: string | null;
+  emailDays: string | null;
+  emailTime: string | null;
+  timezone: string | null;
   createdAt: string;
 }
 
@@ -45,6 +50,30 @@ interface DashboardData {
   generations: Generation[];
   stats: Stats;
 }
+
+const DAYS_MAP: Record<string, string> = {
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  sunday: "Sun",
+};
+
+const TIMEZONE_LABELS: Record<string, string> = {
+  "America/Los_Angeles": "Los Angeles (PT)",
+  "America/Denver": "Denver (MT)",
+  "America/Chicago": "Chicago (CT)",
+  "America/New_York": "New York (ET)",
+  "Europe/London": "London (GMT)",
+  "Europe/Paris": "Paris/Berlin (CET)",
+  "Europe/Moscow": "Moscow (MSK)",
+  "Asia/Dubai": "Dubai (GST)",
+  "Asia/Singapore": "Singapore (SGT)",
+  "Asia/Tokyo": "Tokyo (JST)",
+  "Australia/Sydney": "Sydney (AEST)",
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -118,6 +147,33 @@ export default function Dashboard() {
 
   const toggleGeneration = (id: number) => {
     setExpandedGen(expandedGen === id ? null : id);
+  };
+
+  const formatDays = (daysStr: string | null) => {
+    if (!daysStr) return "Not set";
+    return daysStr.split(",").map(d => DAYS_MAP[d.trim()] || d).join(", ");
+  };
+
+  const formatTime = (time: string | null) => {
+    if (!time) return "Not set";
+    const [hours, minutes] = time.split(":");
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const formatTimezone = (tz: string | null) => {
+    if (!tz) return "Not set";
+    return TIMEZONE_LABELS[tz] || tz.split("/")[1]?.replace("_", " ") || tz;
+  };
+
+  const formatFrequency = (freq: string | null) => {
+    if (!freq) return "Not set";
+    if (freq === "daily") return "Daily";
+    if (freq === "twice_weekly") return "2x per week";
+    if (freq === "weekly") return "Weekly";
+    return freq;
   };
 
   if (loading) {
@@ -200,6 +256,39 @@ export default function Dashboard() {
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+          
+          {/* Target Audience */}
+          {data.user.targetAudience && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-gray-500 text-xs uppercase mb-1">Target Audience</p>
+              <p className="text-gray-300 text-sm">{data.user.targetAudience}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Email Schedule Card */}
+        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl p-6 border border-blue-500/20 mb-8">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <span>📧</span> Email Reminders
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-gray-500 text-xs uppercase mb-1">Frequency</p>
+              <p className="text-white font-medium">{formatFrequency(data.user.emailFrequency)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs uppercase mb-1">Days</p>
+              <p className="text-white font-medium">{formatDays(data.user.emailDays)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs uppercase mb-1">Time</p>
+              <p className="text-white font-medium">{formatTime(data.user.emailTime)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs uppercase mb-1">Timezone</p>
+              <p className="text-white font-medium">{formatTimezone(data.user.timezone)}</p>
             </div>
           </div>
         </div>
@@ -304,7 +393,7 @@ export default function Dashboard() {
                     <div className="px-4 pb-4 space-y-3">
                       {gen.ideas.map((idea, idx) => (
                         <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <p className="text-orange-400 font-medium mb-1">{idea.hook}</p>
+                          <p className="text-orange-400 font-medium mb-1">{idea.hook || (idea as unknown as {title: string}).title}</p>
                           <p className="text-gray-400 text-sm">{idea.description}</p>
                         </div>
                       ))}
@@ -314,14 +403,6 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Weekly Email Note */}
-        <div className="mt-8 bg-gradient-to-r from-orange-500/20 to-pink-500/20 rounded-xl p-6 border border-orange-500/30 text-center">
-          <h3 className="text-white font-semibold mb-2">📬 Weekly Ideas</h3>
-          <p className="text-gray-300 text-sm">
-            We send fresh post ideas to <strong>{data.user.email}</strong> every Monday
-          </p>
         </div>
       </div>
 

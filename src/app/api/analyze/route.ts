@@ -89,6 +89,7 @@ async function saveUserAndGeneration(
   emailFrequency: string,
   emailDays: string,
   emailTime: string,
+  timezone: string,
   ideas: Topic[]
 ): Promise<{ user: Record<string, unknown>; isNew: boolean }> {
   let user = await sql`SELECT * FROM users WHERE email = ${email}`;
@@ -97,8 +98,8 @@ async function saveUserAndGeneration(
   if (user.length === 0) {
     const refCode = generateRefCode();
     user = await sql`
-      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, ref_code, email_frequency, email_days, email_time)
-      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime})
+      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, ref_code, email_frequency, email_days, email_time, timezone)
+      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
       RETURNING *
     `;
     isNew = true;
@@ -108,7 +109,7 @@ async function saveUserAndGeneration(
       SET user_type = ${userType}, niche = ${niche}, target_audience = ${targetAudience},
           linkedin_url = ${linkedinUrl}, linkedin_name = ${linkedinName}, 
           linkedin_headline = ${linkedinHeadline}, last_active = NOW(),
-          email_frequency = ${emailFrequency}, email_days = ${emailDays}, email_time = ${emailTime}
+          email_frequency = ${emailFrequency}, email_days = ${emailDays}, email_time = ${emailTime}, timezone = ${timezone}
       WHERE email = ${email}
       RETURNING *
     `;
@@ -196,7 +197,7 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
 
 export async function POST(request: NextRequest) {
   try {
-    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime } = await request.json();
+    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone } = await request.json();
 
     if (!email || !userType || !niche || !targetAudience) {
       return NextResponse.json(
@@ -288,6 +289,7 @@ Return ONLY valid JSON in this exact format:
       emailFrequency || "weekly",
       emailDays || "monday",
       emailTime || "09:00",
+      timezone || "America/New_York",
       topics
     );
 
