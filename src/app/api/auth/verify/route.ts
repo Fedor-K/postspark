@@ -29,14 +29,25 @@ export async function GET(request: NextRequest) {
     // Mark token as used
     await sql`UPDATE magic_tokens SET used = TRUE WHERE id = ${magicToken.id}`;
 
-    // Find user
-    const users = await sql`SELECT * FROM users WHERE email = ${magicToken.email}`;
-    
+    // Find or create user
+    let users = await sql`SELECT * FROM users WHERE email = ${magicToken.email}`;
+
+    let isNewUser = false;
     if (users.length === 0) {
-      return NextResponse.redirect(`${APP_URL}/login?error=nouser`);
+      // Create new user with minimal data
+      const refCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      users = await sql`
+        INSERT INTO users (email, user_type, ref_code)
+        VALUES (${magicToken.email}, '', ${refCode})
+        RETURNING *
+      `;
+      isNewUser = true;
     }
 
     const user = users[0];
+
+    // Check if onboarding is complete (user_type is set)
+    const needsOnboarding = !user.user_type || user.user_type === '';
 
     // Create session
     const sessionToken = crypto.randomBytes(32).toString("hex");
@@ -60,6 +71,10 @@ export async function GET(request: NextRequest) {
       path: "/",
     });
 
+    // Redirect based on onboarding status
+    if (needsOnboarding) {
+      return NextResponse.redirect(`${APP_URL}/onboarding`);
+    }
     return NextResponse.redirect(`${APP_URL}/dashboard`);
   } catch (error) {
     console.error("Verify error:", error);

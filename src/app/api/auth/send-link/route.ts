@@ -13,7 +13,7 @@ async function sendMagicLinkEmail(email: string, token: string): Promise<boolean
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #f97316; margin: 0;">PostSpark</h1>
+        <h1 style="color: #3b82f6; margin: 0;">PostSpark</h1>
         <p style="color: #6b7280;">LinkedIn Content for Solopreneurs</p>
       </div>
       
@@ -25,14 +25,14 @@ async function sendMagicLinkEmail(email: string, token: string): Promise<boolean
       
       <div style="text-align: center; margin: 30px 0;">
         <a href="${magicLink}" 
-           style="background: linear-gradient(to right, #f97316, #ec4899); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+           style="background: linear-gradient(to right, #3b82f6, #06b6d4); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
           Sign In to PostSpark
         </a>
       </div>
       
       <p style="color: #6b7280; font-size: 14px;">
         Or copy and paste this link in your browser:<br>
-        <a href="${magicLink}" style="color: #f97316; word-break: break-all;">${magicLink}</a>
+        <a href="${magicLink}" style="color: #3b82f6; word-break: break-all;">${magicLink}</a>
       </p>
       
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
@@ -75,14 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valid email required" }, { status: 400 });
     }
 
-    // Check if user exists
-    const users = await sql`SELECT * FROM users WHERE email = ${email}`;
-    
-    if (users.length === 0) {
-      return NextResponse.json({ error: "No account found with this email. Please complete onboarding first." }, { status: 404 });
-    }
-
-    // Generate token
+    // Generate token (allow both new and existing users)
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 

@@ -298,9 +298,9 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Loading your dashboard...</p>
         </div>
       </div>
@@ -309,12 +309,12 @@ export default function Dashboard() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-red-400 mb-4 text-4xl">⚠️</div>
           <h1 className="text-2xl font-bold text-white mb-2">Dashboard Not Found</h1>
           <p className="text-gray-400 mb-6">{error || "Unable to load dashboard"}</p>
-          <Link href="/" className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-lg">
+          <Link href="/" className="inline-block px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-lg">
             Generate New Ideas
           </Link>
         </div>
@@ -323,18 +323,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       <div className="container mx-auto px-4 py-12 max-w-5xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">P</span>
             </div>
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </Link>
           <div className="flex items-center gap-3">
-            <button onClick={openGenerateModal} className="px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90">
+            <button onClick={openGenerateModal} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90">
               + New Ideas
             </button>
             <button onClick={handleLogout} disabled={loggingOut} className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50">
@@ -347,14 +347,14 @@ export default function Dashboard() {
         <div className="bg-white/10 rounded-xl p-6 border border-white/20 mb-8">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                 {data.user.linkedinName?.[0] || data.user.email[0].toUpperCase()}
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">{data.user.linkedinName || "Your Dashboard"}</h1>
                 <p className="text-gray-400">{data.user.linkedinHeadline || `${data.user.userType} in ${data.user.niche}`}</p>
                 <div className="flex gap-2 mt-2">
-                  <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">{data.user.niche}</span>
+                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">{data.user.niche}</span>
                   <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">{data.user.userType}</span>
                 </div>
               </div>
@@ -402,7 +402,7 @@ export default function Dashboard() {
             <div className="text-gray-400 text-sm">Total Ideas</div>
           </div>
           <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
-            <div className="text-3xl font-bold text-orange-400">∞</div>
+            <div className="text-3xl font-bold text-blue-400">∞</div>
             <div className="text-gray-400 text-sm">Potential Reach</div>
           </div>
         </div>
@@ -413,7 +413,7 @@ export default function Dashboard() {
           {data.savedPosts.length === 0 ? (
             <div className="bg-white/5 rounded-xl p-8 border border-white/10 text-center">
               <p className="text-gray-400 mb-4">No saved posts yet</p>
-              <button onClick={openGenerateModal} className="text-orange-400 hover:text-orange-300">Generate ideas and save your favorite posts →</button>
+              <button onClick={openGenerateModal} className="text-blue-400 hover:text-orange-300">Generate ideas and save your favorite posts →</button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -431,7 +431,7 @@ export default function Dashboard() {
                       </button>
                     </div>
                   </div>
-                  {post.idea_title && <p className="text-orange-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
+                  {post.idea_title && <p className="text-blue-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
                   <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-4">{post.post_content}</p>
                 </div>
               ))}
@@ -450,7 +450,7 @@ export default function Dashboard() {
                 <div key={gen.id} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
                   <button onClick={() => toggleGeneration(gen.id)} className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center text-orange-400">💡</div>
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400">💡</div>
                       <div className="text-left">
                         <p className="text-white">{gen.ideasCount} ideas generated</p>
                         <p className="text-gray-500 text-sm">{formatDate(gen.createdAt)}</p>
@@ -462,7 +462,7 @@ export default function Dashboard() {
                     <div className="px-4 pb-4 space-y-3">
                       {gen.ideas.map((idea, idx) => (
                         <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <p className="text-orange-400 font-medium mb-1">{idea.hook || idea.title}</p>
+                          <p className="text-blue-400 font-medium mb-1">{idea.hook || idea.title}</p>
                           <p className="text-gray-400 text-sm">{idea.description}</p>
                         </div>
                       ))}
@@ -490,16 +490,16 @@ export default function Dashboard() {
                   <div className="space-y-4 mb-6">
                     <div>
                       <label className="text-white text-sm font-medium mb-2 block">Niche</label>
-                      <select value={genNiche} onChange={(e) => setGenNiche(e.target.value)} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+                      <select value={genNiche} onChange={(e) => setGenNiche(e.target.value)} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         {NICHES.map(n => <option key={n} value={n} className="bg-slate-800">{n}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-white text-sm font-medium mb-2 block">Target Audience</label>
-                      <textarea value={genAudience} onChange={(e) => setGenAudience(e.target.value)} rows={3} placeholder="Who do you help?" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
+                      <textarea value={genAudience} onChange={(e) => setGenAudience(e.target.value)} rows={3} placeholder="Who do you help?" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
                     </div>
                   </div>
-                  <button onClick={generateNewIdeas} disabled={generating} className="w-full py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
+                  <button onClick={generateNewIdeas} disabled={generating} className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
                     {generating ? <span className="flex items-center justify-center gap-2"><span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Generating...</span> : "Generate 10 Ideas"}
                   </button>
                 </>
@@ -509,14 +509,14 @@ export default function Dashboard() {
                   <div className="space-y-3 mb-6 max-h-80 overflow-y-auto">
                     {newIdeas.map((idea, idx) => (
                       <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                        <p className="text-orange-400 font-medium mb-1">{idea.title}</p>
+                        <p className="text-blue-400 font-medium mb-1">{idea.title}</p>
                         <p className="text-gray-400 text-sm">{idea.description}</p>
                       </div>
                     ))}
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => setNewIdeas(null)} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Generate More</button>
-                    <button onClick={() => setShowGenerateModal(false)} className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90">Done</button>
+                    <button onClick={() => setShowGenerateModal(false)} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90">Done</button>
                   </div>
                 </>
               )}
@@ -538,14 +538,14 @@ export default function Dashboard() {
               <div className="space-y-4 mb-6">
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">Title (optional)</label>
-                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Post title or hook" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Post title or hook" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">Tone</label>
                   <div className="flex gap-2">
                     {["professional", "casual", "storytelling"].map(tone => (
-                      <button key={tone} onClick={() => setEditTone(tone)} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${editTone === tone ? "bg-orange-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>
+                      <button key={tone} onClick={() => setEditTone(tone)} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${editTone === tone ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}>
                         {tone === "professional" ? "Pro" : tone === "casual" ? "Casual" : "Story"}
                       </button>
                     ))}
@@ -554,7 +554,7 @@ export default function Dashboard() {
                 
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">Content</label>
-                  <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={12} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none font-mono text-sm" />
+                  <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={12} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono text-sm" />
                   <p className="text-gray-500 text-xs mt-1">{editContent.length} characters</p>
                 </div>
               </div>
@@ -564,7 +564,7 @@ export default function Dashboard() {
                   {deleting ? "..." : "Delete"}
                 </button>
                 <button onClick={closeEditModal} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Cancel</button>
-                <button onClick={savePost} disabled={saving} className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
+                <button onClick={savePost} disabled={saving} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
