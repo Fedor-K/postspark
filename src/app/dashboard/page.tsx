@@ -430,103 +430,79 @@ export default function Dashboard() {
             </div>
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={generateNewIdeas}
+              disabled={generating}
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+            >
+              {generating ? "..." : "+ Generate"}
+            </button>
             <button
               onClick={handleResetOnboarding}
               disabled={resettingOnboarding}
-              className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50"
+              className="px-3 py-2 text-gray-400 hover:text-white"
             >
-              {resettingOnboarding ? "..." : "Edit Profile"}
+              {resettingOnboarding ? "..." : "Edit"}
             </button>
-            <button onClick={handleLogout} disabled={loggingOut} className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50">
+            <button onClick={handleLogout} disabled={loggingOut} className="px-3 py-2 text-gray-400 hover:text-white">
               {loggingOut ? "..." : "Logout"}
             </button>
           </div>
         </div>
 
-        {/* Profile Summary */}
-        <div className="bg-white/10 rounded-xl p-4 border border-white/20 mb-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-white text-xl font-bold">
-              {data.user.linkedinName?.[0] || data.user.email[0].toUpperCase()}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-white">{data.user.linkedinName || data.user.email}</h1>
-              <p className="text-gray-400 text-sm">{data.user.userType} in {data.user.niche}</p>
-            </div>
-            <div className="text-right text-sm">
-              <div className="text-white font-medium">{data.savedPosts.filter(p => p.published_at).length} posted</div>
-              <div className="text-gray-400">{data.stats.generationCount} generations</div>
-            </div>
-          </div>
-        </div>
-
         {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-6 mb-6 border-b border-white/10">
           <button
             onClick={() => setActiveView('ideas')}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'ideas' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+            className={`pb-3 font-medium transition-all ${activeView === 'ideas' ? 'text-white border-b-2 border-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            Ideas ({currentIdeas.filter((_, i) => !publishedPosts[i]).length})
+            Ideas
           </button>
           <button
             onClick={() => setActiveView('published')}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'published' ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+            className={`pb-3 font-medium transition-all ${activeView === 'published' ? 'text-white border-b-2 border-green-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
-            Posted ({data.savedPosts.filter(p => p.published_at).length})
+            Posted
           </button>
         </div>
 
         {/* Ideas View */}
         {activeView === 'ideas' && (
-          <div className="space-y-4">
-            {/* Generate Button */}
-            <button
-              onClick={generateNewIdeas}
-              disabled={generating}
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 mb-6"
-            >
-              {generating ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Generating new ideas...
-                </span>
-              ) : (
-                "Generate 10 New Ideas"
-              )}
-            </button>
+          <div className="space-y-3">
+            {/* Generating indicator */}
+            {generating && (
+              <div className="flex items-center gap-2 text-gray-400 py-2">
+                <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                Generating new ideas...
+              </div>
+            )}
 
             {/* Ideas List */}
             {currentIdeas.filter((_, i) => !publishedPosts[i]).length === 0 ? (
-              <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
-                <div className="text-4xl mb-4">💡</div>
-                <p className="text-gray-400 mb-4">{currentIdeas.length === 0 ? "No ideas yet. Generate your first batch!" : "All ideas posted! Generate more."}</p>
+              <div className="text-center py-12">
+                <p className="text-gray-500">{currentIdeas.length === 0 ? "No ideas yet. Click + Generate to start." : "All ideas posted! Generate more."}</p>
               </div>
             ) : (
               currentIdeas.map((idea, index) => !publishedPosts[index] && (
-                <div key={index} className="bg-white/10 rounded-xl p-5 border border-white/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-blue-400 font-mono text-sm">#{index + 1}</span>
-                    {idea.format && <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">{idea.format}</span>}
+                <div key={index} className="border-b border-white/10 pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-white font-medium">{idea.title}</p>
+                      <p className="text-gray-500 text-sm mt-1">{idea.description}</p>
+                    </div>
+                    {!generatedPosts[index] && (
+                      <button
+                        onClick={() => writePost(index, idea)}
+                        disabled={writingIndex === index}
+                        className="px-4 py-2 text-sm bg-white/10 text-white rounded-lg hover:bg-white/20 disabled:opacity-50 shrink-0"
+                      >
+                        {writingIndex === index ? `${writingSeconds}s...` : "Write"}
+                      </button>
+                    )}
                   </div>
-                  <p className="text-white font-medium mb-1">{idea.title}</p>
-                  <p className="text-gray-400 text-sm mb-4">{idea.description}</p>
-
-                  {!generatedPosts[index] ? (
-                    <button
-                      onClick={() => writePost(index, idea)}
-                      disabled={writingIndex === index}
-                      className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
-                    >
-                      {writingIndex === index ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Writing... {writingSeconds}s
-                        </span>
-                      ) : "Write This Post"}
-                    </button>
-                  ) : (
-                    <div className="space-y-4">
+                  {generatedPosts[index] && (
+                    <div className="mt-4 space-y-4">
                       {/* Tone Selector */}
                       <div className="flex gap-2">
                         {(["professional", "casual", "storytelling"] as const).map((tone) => (
@@ -633,32 +609,24 @@ export default function Dashboard() {
 
         {/* Published Posts View */}
         {activeView === 'published' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {data.savedPosts.filter(p => p.published_at).length === 0 ? (
-              <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
-                <div className="text-4xl mb-4">🚀</div>
-                <p className="text-gray-400 mb-4">No published posts yet</p>
-                <button onClick={() => setActiveView('ideas')} className="text-blue-400 hover:text-blue-300">
-                  Generate ideas and mark them as Posted
-                </button>
+              <div className="text-center py-12">
+                <p className="text-gray-500">No published posts yet</p>
               </div>
             ) : (
               data.savedPosts.filter(p => p.published_at).map((post) => (
-                <div key={post.id} className="bg-white/10 rounded-xl p-5 border border-green-500/30">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-green-500/20 text-green-300 rounded text-xs">Published</span>
-                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">{post.tone}</span>
-                      <span className="text-gray-500 text-xs">{formatDate(post.published_at!)}</span>
-                    </div>
+                <div key={post.id} className="border-b border-white/10 pb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-500 text-sm">{formatDate(post.published_at!)}</span>
                     <div className="flex items-center gap-2">
                       <button onClick={() => copyPost(`published-${post.id}`, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
                         {copied === `published-${post.id}` ? "Copied!" : "Copy"}
                       </button>
                     </div>
                   </div>
-                  {post.idea_title && <p className="text-green-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{post.post_content}</p>
+                  {post.idea_title && <p className="text-white font-medium mb-1">{post.idea_title}</p>}
+                  <p className="text-gray-500 text-sm line-clamp-2">{post.post_content}</p>
                 </div>
               ))
             )}
