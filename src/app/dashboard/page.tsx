@@ -506,7 +506,12 @@ export default function Dashboard() {
                       disabled={writingIndex === index}
                       className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
                     >
-                      {writingIndex === index ? "Writing..." : "Write This Post"}
+                      {writingIndex === index ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Writing...
+                        </span>
+                      ) : "Write This Post"}
                     </button>
                   ) : (
                     <div className="space-y-4">
