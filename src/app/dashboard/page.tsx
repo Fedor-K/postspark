@@ -87,7 +87,6 @@ export default function Dashboard() {
   const [writingIndex, setWritingIndex] = useState<number | null>(null);
   const [generatedPosts, setGeneratedPosts] = useState<{[key: number]: PostVersions}>({});
   const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
-  const [savedPosts, setSavedPosts] = useState<{[key: number]: boolean}>({});
   const [publishedPosts, setPublishedPosts] = useState<{[key: number]: boolean}>({});
   const [editedContent, setEditedContent] = useState<{[key: number]: string}>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -174,7 +173,6 @@ export default function Dashboard() {
     if (!data) return;
     setGenerating(true);
     setGeneratedPosts({});
-    setSavedPosts({});
     setPublishedPosts({});
     setSelectedTone({});
 
@@ -278,21 +276,6 @@ export default function Dashboard() {
       fetchDashboard(data.user.email);
     } catch (err) {
       console.error("Failed to publish", err);
-    }
-  };
-
-  const savePost = async (index: number, content: string, tone: string, title: string) => {
-    if (!data) return;
-    try {
-      await fetch("/api/posts/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.user.email, content, tone, title }),
-      });
-      setSavedPosts(prev => ({ ...prev, [index]: true }));
-      fetchDashboard(data.user.email);
-    } catch (err) {
-      console.error("Failed to save", err);
     }
   };
 
@@ -616,15 +599,8 @@ export default function Dashboard() {
                           {copied === `idea-${index}` ? "Copied!" : "Copy"}
                         </button>
                         <button
-                          onClick={() => savePost(index, getCurrentContent(index), selectedTone[index], idea.title)}
-                          disabled={savedPosts[index] || publishedPosts[index]}
-                          className="flex-1 py-2.5 bg-blue-500/20 text-blue-300 font-medium rounded-lg hover:bg-blue-500/30 disabled:opacity-50"
-                        >
-                          {savedPosts[index] ? "Saved!" : "Save"}
-                        </button>
-                        <button
                           onClick={() => saveAndPublish(index, getCurrentContent(index), selectedTone[index], idea.title)}
-                          disabled={savedPosts[index] || publishedPosts[index]}
+                          disabled={publishedPosts[index]}
                           className="flex-1 py-2.5 bg-green-500/20 text-green-300 font-medium rounded-lg hover:bg-green-500/30 disabled:opacity-50"
                         >
                           {publishedPosts[index] ? "Posted!" : "Posted"}
