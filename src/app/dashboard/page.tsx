@@ -76,6 +76,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<number | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [resettingOnboarding, setResettingOnboarding] = useState(false);
   const [expandedGen, setExpandedGen] = useState<number | null>(null);
   
   // Generate modal state
@@ -133,6 +134,20 @@ export default function Dashboard() {
       router.push("/login");
     } catch {
       setLoggingOut(false);
+    }
+  };
+
+  const handleResetOnboarding = async () => {
+    if (!confirm("Reset your profile and go through onboarding again? Your saved posts and generation history will be kept.")) return;
+
+    setResettingOnboarding(true);
+    try {
+      const res = await fetch("/api/users/reset-onboarding", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to reset");
+      router.push("/");
+    } catch {
+      setResettingOnboarding(false);
+      setError("Failed to reset onboarding");
     }
   };
 
@@ -344,6 +359,14 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+            <button
+              onClick={handleResetOnboarding}
+              disabled={resettingOnboarding}
+              className="px-3 py-1.5 text-sm bg-white/5 text-gray-400 rounded-lg hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
+              title="Update your profile, niche, and preferences"
+            >
+              {resettingOnboarding ? "..." : "Edit Profile"}
+            </button>
           </div>
           {data.user.targetAudience && (
             <div className="mt-4 pt-4 border-t border-white/10">
