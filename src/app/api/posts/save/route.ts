@@ -60,6 +60,40 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
+    }
+
+    // Ensure published_at column exists (will fail silently if exists)
+    try {
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`;
+    } catch {
+      // Column might already exist
+    }
+
+    const updatedPost = await sql`
+      UPDATE saved_posts
+      SET published_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (updatedPost.length === 0) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ post: updatedPost[0] });
+  } catch (error: unknown) {
+    console.error("Publish post error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to publish post";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

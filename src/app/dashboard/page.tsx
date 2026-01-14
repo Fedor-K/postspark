@@ -14,6 +14,7 @@ interface SavedPost {
   post_content: string;
   tone: string;
   created_at: string;
+  published_at: string | null;
 }
 
 interface Idea {
@@ -73,8 +74,8 @@ export default function Dashboard() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
 
-  // Active view: 'ideas' or 'saved'
-  const [activeView, setActiveView] = useState<'ideas' | 'saved'>('ideas');
+  // Active view: 'ideas', 'saved', or 'published'
+  const [activeView, setActiveView] = useState<'ideas' | 'saved' | 'published'>('ideas');
 
   // Generate state
   const [generating, setGenerating] = useState(false);
@@ -263,6 +264,21 @@ export default function Dashboard() {
     setEditedContent(prev => ({ ...prev, [index]: formattedText }));
   };
 
+  const markAsPublished = async (postId: number) => {
+    if (!data) return;
+    try {
+      const res = await fetch("/api/posts/save", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: postId }),
+      });
+      if (!res.ok) throw new Error("Failed to mark as published");
+      fetchDashboard(data.user.email);
+    } catch (err) {
+      console.error("Failed to publish", err);
+    }
+  };
+
   const savePost = async (index: number, content: string, tone: string, title: string) => {
     if (!data) return;
     try {
@@ -421,13 +437,19 @@ export default function Dashboard() {
             onClick={() => setActiveView('ideas')}
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'ideas' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
           >
-            Post Ideas ({currentIdeas.length})
+            Ideas ({currentIdeas.length})
           </button>
           <button
             onClick={() => setActiveView('saved')}
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'saved' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
           >
-            Saved Posts ({data.savedPosts.length})
+            Drafts ({data.savedPosts.filter(p => !p.published_at).length})
+          </button>
+          <button
+            onClick={() => setActiveView('published')}
+            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'published' ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+          >
+            Posted ({data.savedPosts.filter(p => p.published_at).length})
           </button>
         </div>
 
@@ -580,19 +602,19 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Saved Posts View */}
+        {/* Saved Posts (Drafts) View */}
         {activeView === 'saved' && (
           <div className="space-y-4">
-            {data.savedPosts.length === 0 ? (
+            {data.savedPosts.filter(p => !p.published_at).length === 0 ? (
               <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
                 <div className="text-4xl mb-4">📝</div>
-                <p className="text-gray-400 mb-4">No saved posts yet</p>
+                <p className="text-gray-400 mb-4">No drafts yet</p>
                 <button onClick={() => setActiveView('ideas')} className="text-blue-400 hover:text-blue-300">
                   Generate ideas and save your favorites
                 </button>
               </div>
             ) : (
-              data.savedPosts.map((post) => (
+              data.savedPosts.filter(p => !p.published_at).map((post) => (
                 <div key={post.id} className="bg-white/10 rounded-xl p-5 border border-white/20">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -606,9 +628,46 @@ export default function Dashboard() {
                       <button onClick={() => copyPost(`saved-${post.id}`, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
                         {copied === `saved-${post.id}` ? "Copied!" : "Copy"}
                       </button>
+                      <button onClick={() => markAsPublished(post.id)} className="px-3 py-1 bg-green-500/20 text-green-300 text-sm rounded hover:bg-green-500/30">
+                        Posted
+                      </button>
                     </div>
                   </div>
                   {post.idea_title && <p className="text-blue-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{post.post_content}</p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Published Posts View */}
+        {activeView === 'published' && (
+          <div className="space-y-4">
+            {data.savedPosts.filter(p => p.published_at).length === 0 ? (
+              <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
+                <div className="text-4xl mb-4">🚀</div>
+                <p className="text-gray-400 mb-4">No published posts yet</p>
+                <button onClick={() => setActiveView('saved')} className="text-blue-400 hover:text-blue-300">
+                  Mark your drafts as posted after publishing to LinkedIn
+                </button>
+              </div>
+            ) : (
+              data.savedPosts.filter(p => p.published_at).map((post) => (
+                <div key={post.id} className="bg-white/10 rounded-xl p-5 border border-green-500/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-green-500/20 text-green-300 rounded text-xs">Published</span>
+                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">{post.tone}</span>
+                      <span className="text-gray-500 text-xs">{formatDate(post.published_at!)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => copyPost(`published-${post.id}`, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
+                        {copied === `published-${post.id}` ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                  {post.idea_title && <p className="text-green-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
                   <p className="text-gray-300 text-sm whitespace-pre-wrap">{post.post_content}</p>
                 </div>
               ))
