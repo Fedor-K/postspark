@@ -2,6 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import CharacterCounter from "../../components/CharacterCounter";
+import LinkedInPreview from "../../components/LinkedInPreview";
+import HooksLibrary from "../../components/HooksLibrary";
+import CTAsLibrary from "../../components/CTAsLibrary";
+import TextFormatter from "../../components/TextFormatter";
 
 interface SavedPost {
   id: number;
@@ -84,6 +89,9 @@ export default function Dashboard() {
   const [savedPosts, setSavedPosts] = useState<{[key: number]: boolean}>({});
   const [editedContent, setEditedContent] = useState<{[key: number]: string}>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [showHooks, setShowHooks] = useState<number | null>(null);
+  const [showCTAs, setShowCTAs] = useState<number | null>(null);
+  const [showPreview, setShowPreview] = useState<number | null>(null);
 
   // Edit modal
   const [editingPost, setEditingPost] = useState<SavedPost | null>(null);
@@ -229,6 +237,30 @@ export default function Dashboard() {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const getCurrentContent = (index: number) => {
+    return editedContent[index] || generatedPosts[index]?.[selectedTone[index] as keyof PostVersions] || "";
+  };
+
+  const handleHookSelect = (index: number, hook: string) => {
+    const content = getCurrentContent(index);
+    const parts = content.split("\n\n");
+    parts[0] = hook;
+    setEditedContent(prev => ({ ...prev, [index]: parts.join("\n\n") }));
+    setShowHooks(null);
+  };
+
+  const handleCTASelect = (index: number, cta: string) => {
+    const content = getCurrentContent(index);
+    const parts = content.split("\n\n");
+    parts[parts.length - 1] = cta;
+    setEditedContent(prev => ({ ...prev, [index]: parts.join("\n\n") }));
+    setShowCTAs(null);
+  };
+
+  const handleFormatText = (index: number, formattedText: string) => {
+    setEditedContent(prev => ({ ...prev, [index]: formattedText }));
   };
 
   const savePost = async (index: number, content: string, tone: string, title: string) => {
@@ -460,31 +492,80 @@ export default function Dashboard() {
                         ))}
                       </div>
 
+                      {/* Text Formatter */}
+                      <TextFormatter
+                        text={getCurrentContent(index)}
+                        onFormat={(formatted) => handleFormatText(index, formatted)}
+                      />
+
                       {/* Post Editor */}
-                      <div className="space-y-2">
-                        <textarea
-                          value={editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions]}
-                          onChange={(e) => setEditedContent(prev => ({ ...prev, [index]: e.target.value }))}
-                          onClick={() => setEditingIndex(index)}
-                          rows={12}
-                          className="w-full p-4 bg-white/5 rounded-lg border border-white/20 text-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>{(editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions]).length} characters</span>
-                          <span>Click to edit</span>
-                        </div>
+                      <textarea
+                        value={getCurrentContent(index)}
+                        onChange={(e) => setEditedContent(prev => ({ ...prev, [index]: e.target.value }))}
+                        rows={12}
+                        className="w-full p-4 bg-white/5 rounded-lg border border-white/20 text-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+
+                      {/* Character Counter */}
+                      <CharacterCounter text={getCurrentContent(index)} />
+
+                      {/* Tool Buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowHooks(showHooks === index ? null : index); setShowCTAs(null); setShowPreview(null); }}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showHooks === index ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                        >
+                          🪝 Hooks
+                        </button>
+                        <button
+                          onClick={() => { setShowCTAs(showCTAs === index ? null : index); setShowHooks(null); setShowPreview(null); }}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showCTAs === index ? "bg-cyan-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                        >
+                          🎯 CTAs
+                        </button>
+                        <button
+                          onClick={() => { setShowPreview(showPreview === index ? null : index); setShowHooks(null); setShowCTAs(null); }}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${showPreview === index ? "bg-purple-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                        >
+                          👁️ Preview
+                        </button>
                       </div>
+
+                      {/* Hooks Library */}
+                      {showHooks === index && (
+                        <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                          <HooksLibrary onSelect={(hook) => handleHookSelect(index, hook)} userNiche={data?.user.userType || ""} />
+                        </div>
+                      )}
+
+                      {/* CTAs Library */}
+                      {showCTAs === index && (
+                        <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                          <CTAsLibrary onSelect={(cta) => handleCTASelect(index, cta)} />
+                        </div>
+                      )}
+
+                      {/* LinkedIn Preview */}
+                      {showPreview === index && (
+                        <div className="p-4 bg-slate-800 rounded-lg">
+                          <LinkedInPreview
+                            content={getCurrentContent(index)}
+                            authorName={data?.user.linkedinName || "Your Name"}
+                            authorHeadline={data?.user.linkedinHeadline || undefined}
+                          />
+                        </div>
+                      )}
 
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => copyPost(`idea-${index}`, editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions])}
+                          onClick={() => copyPost(`idea-${index}`, getCurrentContent(index))}
                           className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20"
                         >
                           {copied === `idea-${index}` ? "Copied!" : "Copy"}
                         </button>
                         <button
-                          onClick={() => savePost(index, editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions], selectedTone[index], idea.title)}
+                          onClick={() => savePost(index, getCurrentContent(index), selectedTone[index], idea.title)}
                           disabled={savedPosts[index]}
                           className="flex-1 py-2.5 bg-blue-500/20 text-blue-300 font-medium rounded-lg hover:bg-blue-500/30 disabled:opacity-50"
                         >
