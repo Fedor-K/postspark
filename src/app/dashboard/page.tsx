@@ -85,7 +85,6 @@ export default function Dashboard() {
 
   // Post writing state
   const [writingIndex, setWritingIndex] = useState<number | null>(null);
-  const [writingSeconds, setWritingSeconds] = useState(0);
   const [generatedPosts, setGeneratedPosts] = useState<{[key: number]: PostVersions}>({});
   const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
   const [publishedPosts, setPublishedPosts] = useState<{[key: number]: boolean}>({});
@@ -106,17 +105,6 @@ export default function Dashboard() {
   useEffect(() => {
     checkSession();
   }, []);
-
-  // Timer for writing progress
-  useEffect(() => {
-    if (writingIndex !== null) {
-      setWritingSeconds(0);
-      const interval = setInterval(() => {
-        setWritingSeconds(prev => prev + 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [writingIndex]);
 
   const checkSession = async () => {
     try {
@@ -497,7 +485,13 @@ export default function Dashboard() {
                         disabled={writingIndex === index}
                         className="px-4 py-2 text-sm bg-white/10 text-white rounded-lg hover:bg-white/20 disabled:opacity-50 shrink-0"
                       >
-                        {writingIndex === index ? `${writingSeconds}s...` : "Write"}
+                        {writingIndex === index ? (
+                          <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse [animation-delay:0.2s]" />
+                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse [animation-delay:0.4s]" />
+                          </span>
+                        ) : "Write"}
                       </button>
                     )}
                   </div>
