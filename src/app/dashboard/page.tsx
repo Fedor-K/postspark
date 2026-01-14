@@ -82,6 +82,8 @@ export default function Dashboard() {
   const [generatedPosts, setGeneratedPosts] = useState<{[key: number]: PostVersions}>({});
   const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
   const [savedPosts, setSavedPosts] = useState<{[key: number]: boolean}>({});
+  const [editedContent, setEditedContent] = useState<{[key: number]: string}>({});
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Edit modal
   const [editingPost, setEditingPost] = useState<SavedPost | null>(null);
@@ -214,6 +216,8 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(result.error);
       setGeneratedPosts(prev => ({ ...prev, [index]: result.posts }));
       setSelectedTone(prev => ({ ...prev, [index]: "professional" }));
+      setEditedContent(prev => ({ ...prev, [index]: result.posts.professional }));
+      setEditingIndex(index);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to write post");
     } finally {
@@ -445,7 +449,10 @@ export default function Dashboard() {
                         {(["professional", "casual", "storytelling"] as const).map((tone) => (
                           <button
                             key={tone}
-                            onClick={() => setSelectedTone(prev => ({ ...prev, [index]: tone }))}
+                            onClick={() => {
+                              setSelectedTone(prev => ({ ...prev, [index]: tone }));
+                              setEditedContent(prev => ({ ...prev, [index]: generatedPosts[index][tone] }));
+                            }}
                             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedTone[index] === tone ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
                           >
                             {tone === "professional" ? "Professional" : tone === "casual" ? "Casual" : "Storytelling"}
@@ -453,23 +460,31 @@ export default function Dashboard() {
                         ))}
                       </div>
 
-                      {/* Post Content */}
-                      <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                        <p className="text-gray-200 whitespace-pre-wrap text-sm">
-                          {generatedPosts[index][selectedTone[index] as keyof PostVersions]}
-                        </p>
+                      {/* Post Editor */}
+                      <div className="space-y-2">
+                        <textarea
+                          value={editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions]}
+                          onChange={(e) => setEditedContent(prev => ({ ...prev, [index]: e.target.value }))}
+                          onClick={() => setEditingIndex(index)}
+                          rows={12}
+                          className="w-full p-4 bg-white/5 rounded-lg border border-white/20 text-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>{(editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions]).length} characters</span>
+                          <span>Click to edit</span>
+                        </div>
                       </div>
 
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => copyPost(`idea-${index}`, generatedPosts[index][selectedTone[index] as keyof PostVersions])}
+                          onClick={() => copyPost(`idea-${index}`, editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions])}
                           className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20"
                         >
                           {copied === `idea-${index}` ? "Copied!" : "Copy"}
                         </button>
                         <button
-                          onClick={() => savePost(index, generatedPosts[index][selectedTone[index] as keyof PostVersions], selectedTone[index], idea.title)}
+                          onClick={() => savePost(index, editedContent[index] || generatedPosts[index][selectedTone[index] as keyof PostVersions], selectedTone[index], idea.title)}
                           disabled={savedPosts[index]}
                           className="flex-1 py-2.5 bg-blue-500/20 text-blue-300 font-medium rounded-lg hover:bg-blue-500/30 disabled:opacity-50"
                         >
