@@ -85,6 +85,7 @@ export default function Dashboard() {
 
   // Post writing state
   const [writingIndex, setWritingIndex] = useState<number | null>(null);
+  const [writingSeconds, setWritingSeconds] = useState(0);
   const [generatedPosts, setGeneratedPosts] = useState<{[key: number]: PostVersions}>({});
   const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
   const [publishedPosts, setPublishedPosts] = useState<{[key: number]: boolean}>({});
@@ -105,6 +106,17 @@ export default function Dashboard() {
   useEffect(() => {
     checkSession();
   }, []);
+
+  // Timer for writing progress
+  useEffect(() => {
+    if (writingIndex !== null) {
+      setWritingSeconds(0);
+      const interval = setInterval(() => {
+        setWritingSeconds(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [writingIndex]);
 
   const checkSession = async () => {
     try {
@@ -509,7 +521,7 @@ export default function Dashboard() {
                       {writingIndex === index ? (
                         <span className="flex items-center justify-center gap-2">
                           <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Writing...
+                          Writing... {writingSeconds}s
                         </span>
                       ) : "Write This Post"}
                     </button>
