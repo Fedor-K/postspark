@@ -472,7 +472,7 @@ export default function Dashboard() {
             onClick={() => setActiveView('ideas')}
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'ideas' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
           >
-            Ideas ({currentIdeas.length})
+            Ideas ({currentIdeas.filter((_, i) => !publishedPosts[i]).length})
           </button>
           <button
             onClick={() => setActiveView('published')}
@@ -502,13 +502,13 @@ export default function Dashboard() {
             </button>
 
             {/* Ideas List */}
-            {currentIdeas.length === 0 ? (
+            {currentIdeas.filter((_, i) => !publishedPosts[i]).length === 0 ? (
               <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
                 <div className="text-4xl mb-4">💡</div>
-                <p className="text-gray-400 mb-4">No ideas yet. Generate your first batch!</p>
+                <p className="text-gray-400 mb-4">{currentIdeas.length === 0 ? "No ideas yet. Generate your first batch!" : "All ideas posted! Generate more."}</p>
               </div>
             ) : (
-              currentIdeas.map((idea, index) => (
+              currentIdeas.map((idea, index) => !publishedPosts[index] && (
                 <div key={index} className="bg-white/10 rounded-xl p-5 border border-white/20">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-blue-400 font-mono text-sm">#{index + 1}</span>
