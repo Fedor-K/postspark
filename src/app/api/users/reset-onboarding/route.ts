@@ -29,9 +29,10 @@ export async function POST() {
     const userId = sessions[0].user_id;
 
     // Reset onboarding fields (keep email, ref_code, created_at, saved_posts, generations)
+    // Note: user_type has NOT NULL constraint, so we set it to empty string as marker
     await sql`
       UPDATE users
-      SET user_type = NULL,
+      SET user_type = '',
           niche = NULL,
           target_audience = NULL,
           linkedin_url = NULL,
