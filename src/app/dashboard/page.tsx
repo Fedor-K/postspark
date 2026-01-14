@@ -88,6 +88,7 @@ export default function Dashboard() {
   const [generatedPosts, setGeneratedPosts] = useState<{[key: number]: PostVersions}>({});
   const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
   const [savedPosts, setSavedPosts] = useState<{[key: number]: boolean}>({});
+  const [publishedPosts, setPublishedPosts] = useState<{[key: number]: boolean}>({});
   const [editedContent, setEditedContent] = useState<{[key: number]: string}>({});
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showHooks, setShowHooks] = useState<number | null>(null);
@@ -174,6 +175,7 @@ export default function Dashboard() {
     setGenerating(true);
     setGeneratedPosts({});
     setSavedPosts({});
+    setPublishedPosts({});
     setSelectedTone({});
 
     try {
@@ -291,6 +293,39 @@ export default function Dashboard() {
       fetchDashboard(data.user.email);
     } catch (err) {
       console.error("Failed to save", err);
+    }
+  };
+
+  const saveAndPublish = async (index: number, content: string, tone: string, title: string) => {
+    if (!data) return;
+    try {
+      // Save the post first
+      const saveRes = await fetch("/api/posts/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.user.email, content, tone, title }),
+      });
+      const saveData = await saveRes.json();
+
+      if (!saveRes.ok || !saveData.post?.id) {
+        throw new Error("Failed to save post");
+      }
+
+      // Mark as published immediately
+      const publishRes = await fetch("/api/posts/save", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: saveData.post.id }),
+      });
+
+      if (!publishRes.ok) {
+        throw new Error("Failed to mark as published");
+      }
+
+      setPublishedPosts(prev => ({ ...prev, [index]: true }));
+      fetchDashboard(data.user.email);
+    } catch (err) {
+      console.error("Failed to save and publish", err);
     }
   };
 
@@ -440,12 +475,6 @@ export default function Dashboard() {
             Ideas ({currentIdeas.length})
           </button>
           <button
-            onClick={() => setActiveView('saved')}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'saved' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
-          >
-            Drafts ({data.savedPosts.filter(p => !p.published_at).length})
-          </button>
-          <button
             onClick={() => setActiveView('published')}
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'published' ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
           >
@@ -588,53 +617,21 @@ export default function Dashboard() {
                         </button>
                         <button
                           onClick={() => savePost(index, getCurrentContent(index), selectedTone[index], idea.title)}
-                          disabled={savedPosts[index]}
+                          disabled={savedPosts[index] || publishedPosts[index]}
                           className="flex-1 py-2.5 bg-blue-500/20 text-blue-300 font-medium rounded-lg hover:bg-blue-500/30 disabled:opacity-50"
                         >
-                          {savedPosts[index] ? "Saved!" : "Save Post"}
+                          {savedPosts[index] ? "Saved!" : "Save"}
+                        </button>
+                        <button
+                          onClick={() => saveAndPublish(index, getCurrentContent(index), selectedTone[index], idea.title)}
+                          disabled={savedPosts[index] || publishedPosts[index]}
+                          className="flex-1 py-2.5 bg-green-500/20 text-green-300 font-medium rounded-lg hover:bg-green-500/30 disabled:opacity-50"
+                        >
+                          {publishedPosts[index] ? "Posted!" : "Posted"}
                         </button>
                       </div>
                     </div>
                   )}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Saved Posts (Drafts) View */}
-        {activeView === 'saved' && (
-          <div className="space-y-4">
-            {data.savedPosts.filter(p => !p.published_at).length === 0 ? (
-              <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
-                <div className="text-4xl mb-4">📝</div>
-                <p className="text-gray-400 mb-4">No drafts yet</p>
-                <button onClick={() => setActiveView('ideas')} className="text-blue-400 hover:text-blue-300">
-                  Generate ideas and save your favorites
-                </button>
-              </div>
-            ) : (
-              data.savedPosts.filter(p => !p.published_at).map((post) => (
-                <div key={post.id} className="bg-white/10 rounded-xl p-5 border border-white/20">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">{post.tone}</span>
-                      <span className="text-gray-500 text-xs">{formatDate(post.created_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => openEditModal(post)} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded hover:bg-blue-500/30">
-                        Edit
-                      </button>
-                      <button onClick={() => copyPost(`saved-${post.id}`, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
-                        {copied === `saved-${post.id}` ? "Copied!" : "Copy"}
-                      </button>
-                      <button onClick={() => markAsPublished(post.id)} className="px-3 py-1 bg-green-500/20 text-green-300 text-sm rounded hover:bg-green-500/30">
-                        Posted
-                      </button>
-                    </div>
-                  </div>
-                  {post.idea_title && <p className="text-blue-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{post.post_content}</p>
                 </div>
               ))
             )}
@@ -648,8 +645,8 @@ export default function Dashboard() {
               <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
                 <div className="text-4xl mb-4">🚀</div>
                 <p className="text-gray-400 mb-4">No published posts yet</p>
-                <button onClick={() => setActiveView('saved')} className="text-blue-400 hover:text-blue-300">
-                  Mark your drafts as posted after publishing to LinkedIn
+                <button onClick={() => setActiveView('ideas')} className="text-blue-400 hover:text-blue-300">
+                  Generate ideas and mark them as Posted
                 </button>
               </div>
             ) : (
