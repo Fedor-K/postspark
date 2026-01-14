@@ -45,14 +45,8 @@ export async function POST() {
       WHERE id = ${userId}
     `;
 
-    // Delete session to force re-login after onboarding
-    await sql`DELETE FROM sessions WHERE session_token = ${sessionToken}`;
-
-    // Clear session cookie
-    const response = NextResponse.json({ success: true, message: "Onboarding reset. Please complete onboarding again." });
-    response.cookies.delete("session");
-
-    return response;
+    // Keep the session - user stays logged in
+    return NextResponse.json({ success: true, message: "Onboarding reset. Redirecting to onboarding." });
   } catch (error: unknown) {
     console.error("Reset onboarding error:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to reset onboarding";

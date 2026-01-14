@@ -15,6 +15,7 @@ interface Idea {
   hook: string;
   title: string;
   description: string;
+  format?: string;
 }
 
 interface Generation {
@@ -52,41 +53,37 @@ interface DashboardData {
   stats: Stats;
 }
 
-const DAYS_MAP: Record<string, string> = {
-  monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu",
-  friday: "Fri", saturday: "Sat", sunday: "Sun",
-};
-
-const TIMEZONE_LABELS: Record<string, string> = {
-  "America/Los_Angeles": "Los Angeles (PT)", "America/New_York": "New York (ET)",
-  "Europe/London": "London (GMT)", "Europe/Paris": "Paris/Berlin (CET)",
-  "Europe/Moscow": "Moscow (MSK)", "Asia/Tokyo": "Tokyo (JST)",
-};
-
-const NICHES = [
-  "Marketing", "Sales", "Tech/Software", "Finance", "HR/Recruiting",
-  "Design", "Fitness/Health", "Real Estate", "E-commerce", "Education",
-  "Legal", "Consulting", "Coaching", "Other"
-];
+interface PostVersions {
+  professional: string;
+  casual: string;
+  storytelling: string;
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState<number | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
-  const [expandedGen, setExpandedGen] = useState<number | null>(null);
-  
-  // Generate modal state
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [genNiche, setGenNiche] = useState("");
-  const [genAudience, setGenAudience] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [newIdeas, setNewIdeas] = useState<Idea[] | null>(null);
 
-  // Edit post modal state
+  // Active view: 'ideas' or 'saved'
+  const [activeView, setActiveView] = useState<'ideas' | 'saved'>('ideas');
+
+  // Generate state
+  const [generating, setGenerating] = useState(false);
+
+  // Current ideas being worked on
+  const [currentIdeas, setCurrentIdeas] = useState<Idea[]>([]);
+
+  // Post writing state
+  const [writingIndex, setWritingIndex] = useState<number | null>(null);
+  const [generatedPosts, setGeneratedPosts] = useState<{[key: number]: PostVersions}>({});
+  const [selectedTone, setSelectedTone] = useState<{[key: number]: string}>({});
+  const [savedPosts, setSavedPosts] = useState<{[key: number]: boolean}>({});
+
+  // Edit modal
   const [editingPost, setEditingPost] = useState<SavedPost | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editTitle, setEditTitle] = useState("");
@@ -106,6 +103,10 @@ export default function Dashboard() {
         router.push("/login");
         return;
       }
+      if (!result.user.userType || result.user.userType === '') {
+        router.push("/onboarding");
+        return;
+      }
       fetchDashboard(result.user.email);
     } catch {
       router.push("/login");
@@ -118,8 +119,14 @@ export default function Dashboard() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       setData(result);
-      setGenNiche(result.user.niche || "");
-      setGenAudience(result.user.targetAudience || "");
+
+      // Load latest generation ideas
+      if (result.generations && result.generations.length > 0) {
+        const latest = result.generations[0];
+        if (latest.ideas && latest.ideas.length > 0) {
+          setCurrentIdeas(latest.ideas);
+        }
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
@@ -138,72 +145,26 @@ export default function Dashboard() {
   };
 
   const handleResetOnboarding = async () => {
-    if (!confirm("Reset your profile and go through onboarding again? Your saved posts and generation history will be kept.")) return;
+    if (!confirm("Update your profile? Your saved posts and generation history will be kept.")) return;
 
     setResettingOnboarding(true);
     try {
       const res = await fetch("/api/users/reset-onboarding", { method: "POST" });
       if (!res.ok) throw new Error("Failed to reset");
-      router.push("/");
+      router.push("/onboarding");
     } catch {
       setResettingOnboarding(false);
       setError("Failed to reset onboarding");
     }
   };
 
-  const copyPost = (id: number, content: string) => {
-    navigator.clipboard.writeText(content);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-    });
-  };
-
-  const toggleGeneration = (id: number) => {
-    setExpandedGen(expandedGen === id ? null : id);
-  };
-
-  const formatDays = (daysStr: string | null) => {
-    if (!daysStr) return "Not set";
-    return daysStr.split(",").map(d => DAYS_MAP[d.trim()] || d).join(", ");
-  };
-
-  const formatTime = (time: string | null) => {
-    if (!time) return "Not set";
-    const [hours, minutes] = time.split(":");
-    const h = parseInt(hours);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const hour12 = h % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  const formatTimezone = (tz: string | null) => {
-    if (!tz) return "Not set";
-    return TIMEZONE_LABELS[tz] || tz.split("/")[1]?.replace("_", " ") || tz;
-  };
-
-  const formatFrequency = (freq: string | null) => {
-    if (!freq) return "Not set";
-    if (freq === "daily") return "Daily";
-    if (freq === "twice_weekly") return "2x per week";
-    if (freq === "weekly") return "Weekly";
-    return freq;
-  };
-
-  const openGenerateModal = () => {
-    setNewIdeas(null);
-    setShowGenerateModal(true);
-  };
-
   const generateNewIdeas = async () => {
     if (!data) return;
     setGenerating(true);
-    setNewIdeas(null);
-    
+    setGeneratedPosts({});
+    setSavedPosts({});
+    setSelectedTone({});
+
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -211,8 +172,8 @@ export default function Dashboard() {
         body: JSON.stringify({
           email: data.user.email,
           userType: data.user.userType,
-          niche: genNiche || data.user.niche,
-          targetAudience: genAudience || data.user.targetAudience,
+          niche: data.user.niche,
+          targetAudience: data.user.targetAudience,
           linkedinUrl: data.user.linkedinUrl,
           emailFrequency: data.user.emailFrequency,
           emailDays: data.user.emailDays,
@@ -220,17 +181,71 @@ export default function Dashboard() {
           timezone: data.user.timezone,
         }),
       });
-      
+
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      
-      setNewIdeas(result.topics);
+
+      setCurrentIdeas(result.topics || []);
       fetchDashboard(data.user.email);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to generate ideas");
     } finally {
       setGenerating(false);
     }
+  };
+
+  const writePost = async (index: number, idea: Idea) => {
+    if (!data) return;
+    setWritingIndex(index);
+
+    try {
+      const res = await fetch("/api/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...idea,
+          profile: { name: data.user.linkedinName, headline: data.user.linkedinHeadline },
+          userType: data.user.userType,
+          niche: data.user.niche,
+          targetAudience: data.user.targetAudience,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setGeneratedPosts(prev => ({ ...prev, [index]: result.posts }));
+      setSelectedTone(prev => ({ ...prev, [index]: "professional" }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to write post");
+    } finally {
+      setWritingIndex(null);
+    }
+  };
+
+  const copyPost = (key: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const savePost = async (index: number, content: string, tone: string, title: string) => {
+    if (!data) return;
+    try {
+      await fetch("/api/posts/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.user.email, content, tone, title }),
+      });
+      setSavedPosts(prev => ({ ...prev, [index]: true }));
+      fetchDashboard(data.user.email);
+    } catch (err) {
+      console.error("Failed to save", err);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+    });
   };
 
   const openEditModal = (post: SavedPost) => {
@@ -247,10 +262,10 @@ export default function Dashboard() {
     setEditTone("");
   };
 
-  const savePost = async () => {
+  const updatePost = async () => {
     if (!editingPost || !data) return;
     setSaving(true);
-    
+
     try {
       const res = await fetch("/api/posts/save", {
         method: "PUT",
@@ -262,9 +277,9 @@ export default function Dashboard() {
           tone: editTone,
         }),
       });
-      
+
       if (!res.ok) throw new Error("Failed to save");
-      
+
       closeEditModal();
       fetchDashboard(data.user.email);
     } catch (err: unknown) {
@@ -277,16 +292,16 @@ export default function Dashboard() {
   const deletePost = async () => {
     if (!editingPost || !data) return;
     if (!confirm("Delete this post?")) return;
-    
+
     setDeleting(true);
-    
+
     try {
       const res = await fetch(`/api/posts/save?id=${editingPost.id}`, {
         method: "DELETE",
       });
-      
+
       if (!res.ok) throw new Error("Failed to delete");
-      
+
       closeEditModal();
       fetchDashboard(data.user.email);
     } catch (err: unknown) {
@@ -311,11 +326,11 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="text-red-400 mb-4 text-4xl">⚠️</div>
+          <div className="text-red-400 mb-4 text-4xl">!</div>
           <h1 className="text-2xl font-bold text-white mb-2">Dashboard Not Found</h1>
           <p className="text-gray-400 mb-6">{error || "Unable to load dashboard"}</p>
           <Link href="/" className="inline-block px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-lg">
-            Generate New Ideas
+            Go Home
           </Link>
         </div>
       </div>
@@ -324,7 +339,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link href="/dashboard" className="flex items-center gap-2">
@@ -334,8 +349,12 @@ export default function Dashboard() {
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </Link>
           <div className="flex items-center gap-3">
-            <button onClick={openGenerateModal} className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90">
-              + New Ideas
+            <button
+              onClick={handleResetOnboarding}
+              disabled={resettingOnboarding}
+              className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50"
+            >
+              {resettingOnboarding ? "..." : "Edit Profile"}
             </button>
             <button onClick={handleLogout} disabled={loggingOut} className="px-4 py-2 bg-white/10 text-gray-300 font-medium rounded-lg hover:bg-white/20 disabled:opacity-50">
               {loggingOut ? "..." : "Logout"}
@@ -343,81 +362,141 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Profile Card */}
-        <div className="bg-white/10 rounded-xl p-6 border border-white/20 mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                {data.user.linkedinName?.[0] || data.user.email[0].toUpperCase()}
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">{data.user.linkedinName || "Your Dashboard"}</h1>
-                <p className="text-gray-400">{data.user.linkedinHeadline || `${data.user.userType} in ${data.user.niche}`}</p>
-                <div className="flex gap-2 mt-2">
-                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">{data.user.niche}</span>
-                  <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">{data.user.userType}</span>
-                </div>
-              </div>
+        {/* Profile Summary */}
+        <div className="bg-white/10 rounded-xl p-4 border border-white/20 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-white text-xl font-bold">
+              {data.user.linkedinName?.[0] || data.user.email[0].toUpperCase()}
             </div>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-white">{data.user.linkedinName || data.user.email}</h1>
+              <p className="text-gray-400 text-sm">{data.user.userType} in {data.user.niche}</p>
+            </div>
+            <div className="text-right text-sm">
+              <div className="text-white font-medium">{data.stats.savedCount} saved</div>
+              <div className="text-gray-400">{data.stats.generationCount} generations</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveView('ideas')}
+            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'ideas' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+          >
+            Post Ideas ({currentIdeas.length})
+          </button>
+          <button
+            onClick={() => setActiveView('saved')}
+            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeView === 'saved' ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+          >
+            Saved Posts ({data.savedPosts.length})
+          </button>
+        </div>
+
+        {/* Ideas View */}
+        {activeView === 'ideas' && (
+          <div className="space-y-4">
+            {/* Generate Button */}
             <button
-              onClick={handleResetOnboarding}
-              disabled={resettingOnboarding}
-              className="px-3 py-1.5 text-sm bg-white/5 text-gray-400 rounded-lg hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
-              title="Update your profile, niche, and preferences"
+              onClick={generateNewIdeas}
+              disabled={generating}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 mb-6"
             >
-              {resettingOnboarding ? "..." : "Edit Profile"}
+              {generating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Generating new ideas...
+                </span>
+              ) : (
+                "Generate 10 New Ideas"
+              )}
             </button>
-          </div>
-          {data.user.targetAudience && (
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <p className="text-gray-500 text-xs uppercase mb-1">Target Audience</p>
-              <p className="text-gray-300 text-sm">{data.user.targetAudience}</p>
-            </div>
-          )}
-        </div>
 
-        {/* Email Schedule Card */}
-        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl p-6 border border-blue-500/20 mb-8">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2"><span>📧</span> Email Reminders</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div><p className="text-gray-500 text-xs uppercase mb-1">Frequency</p><p className="text-white font-medium">{formatFrequency(data.user.emailFrequency)}</p></div>
-            <div><p className="text-gray-500 text-xs uppercase mb-1">Days</p><p className="text-white font-medium">{formatDays(data.user.emailDays)}</p></div>
-            <div><p className="text-gray-500 text-xs uppercase mb-1">Time</p><p className="text-white font-medium">{formatTime(data.user.emailTime)}</p></div>
-            <div><p className="text-gray-500 text-xs uppercase mb-1">Timezone</p><p className="text-white font-medium">{formatTimezone(data.user.timezone)}</p></div>
-          </div>
-        </div>
+            {/* Ideas List */}
+            {currentIdeas.length === 0 ? (
+              <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
+                <div className="text-4xl mb-4">💡</div>
+                <p className="text-gray-400 mb-4">No ideas yet. Generate your first batch!</p>
+              </div>
+            ) : (
+              currentIdeas.map((idea, index) => (
+                <div key={index} className="bg-white/10 rounded-xl p-5 border border-white/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-blue-400 font-mono text-sm">#{index + 1}</span>
+                    {idea.format && <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs">{idea.format}</span>}
+                  </div>
+                  <p className="text-white font-medium mb-1">{idea.title}</p>
+                  <p className="text-gray-400 text-sm mb-4">{idea.description}</p>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
-            <div className="text-3xl font-bold text-white">{data.stats.generationCount}</div>
-            <div className="text-gray-400 text-sm">Sessions</div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
-            <div className="text-3xl font-bold text-white">{data.stats.savedCount}</div>
-            <div className="text-gray-400 text-sm">Posts Saved</div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
-            <div className="text-3xl font-bold text-white">{data.stats.generationCount * 10}</div>
-            <div className="text-gray-400 text-sm">Total Ideas</div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-5 border border-white/20 text-center">
-            <div className="text-3xl font-bold text-blue-400">∞</div>
-            <div className="text-gray-400 text-sm">Potential Reach</div>
-          </div>
-        </div>
+                  {!generatedPosts[index] ? (
+                    <button
+                      onClick={() => writePost(index, idea)}
+                      disabled={writingIndex === index}
+                      className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+                    >
+                      {writingIndex === index ? "Writing..." : "Write This Post"}
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Tone Selector */}
+                      <div className="flex gap-2">
+                        {(["professional", "casual", "storytelling"] as const).map((tone) => (
+                          <button
+                            key={tone}
+                            onClick={() => setSelectedTone(prev => ({ ...prev, [index]: tone }))}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedTone[index] === tone ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                          >
+                            {tone === "professional" ? "Professional" : tone === "casual" ? "Casual" : "Storytelling"}
+                          </button>
+                        ))}
+                      </div>
 
-        {/* Saved Posts */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-white mb-4">Saved Posts ({data.savedPosts.length})</h2>
-          {data.savedPosts.length === 0 ? (
-            <div className="bg-white/5 rounded-xl p-8 border border-white/10 text-center">
-              <p className="text-gray-400 mb-4">No saved posts yet</p>
-              <button onClick={openGenerateModal} className="text-blue-400 hover:text-orange-300">Generate ideas and save your favorite posts →</button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {data.savedPosts.map((post) => (
+                      {/* Post Content */}
+                      <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                        <p className="text-gray-200 whitespace-pre-wrap text-sm">
+                          {generatedPosts[index][selectedTone[index] as keyof PostVersions]}
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => copyPost(`idea-${index}`, generatedPosts[index][selectedTone[index] as keyof PostVersions])}
+                          className="flex-1 py-2.5 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20"
+                        >
+                          {copied === `idea-${index}` ? "Copied!" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => savePost(index, generatedPosts[index][selectedTone[index] as keyof PostVersions], selectedTone[index], idea.title)}
+                          disabled={savedPosts[index]}
+                          className="flex-1 py-2.5 bg-blue-500/20 text-blue-300 font-medium rounded-lg hover:bg-blue-500/30 disabled:opacity-50"
+                        >
+                          {savedPosts[index] ? "Saved!" : "Save Post"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Saved Posts View */}
+        {activeView === 'saved' && (
+          <div className="space-y-4">
+            {data.savedPosts.length === 0 ? (
+              <div className="bg-white/5 rounded-xl p-12 border border-white/10 text-center">
+                <div className="text-4xl mb-4">📝</div>
+                <p className="text-gray-400 mb-4">No saved posts yet</p>
+                <button onClick={() => setActiveView('ideas')} className="text-blue-400 hover:text-blue-300">
+                  Generate ideas and save your favorites
+                </button>
+              </div>
+            ) : (
+              data.savedPosts.map((post) => (
                 <div key={post.id} className="bg-white/10 rounded-xl p-5 border border-white/20">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -425,122 +504,39 @@ export default function Dashboard() {
                       <span className="text-gray-500 text-xs">{formatDate(post.created_at)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEditModal(post)} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded hover:bg-blue-500/30">Edit</button>
-                      <button onClick={() => copyPost(post.id, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
-                        {copied === post.id ? "Copied!" : "Copy"}
+                      <button onClick={() => openEditModal(post)} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded hover:bg-blue-500/30">
+                        Edit
+                      </button>
+                      <button onClick={() => copyPost(`saved-${post.id}`, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
+                        {copied === `saved-${post.id}` ? "Copied!" : "Copy"}
                       </button>
                     </div>
                   </div>
                   {post.idea_title && <p className="text-blue-400 text-sm mb-2 font-medium">{post.idea_title}</p>}
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-4">{post.post_content}</p>
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{post.post_content}</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Generation History */}
-        <div>
-          <h2 className="text-xl font-bold text-white mb-4">Generation History</h2>
-          {data.generations.length === 0 ? (
-            <div className="bg-white/5 rounded-xl p-8 border border-white/10 text-center"><p className="text-gray-400">No generations yet</p></div>
-          ) : (
-            <div className="space-y-3">
-              {data.generations.map((gen) => (
-                <div key={gen.id} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                  <button onClick={() => toggleGeneration(gen.id)} className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400">💡</div>
-                      <div className="text-left">
-                        <p className="text-white">{gen.ideasCount} ideas generated</p>
-                        <p className="text-gray-500 text-sm">{formatDate(gen.createdAt)}</p>
-                      </div>
-                    </div>
-                    <span className="text-gray-400 text-xl">{expandedGen === gen.id ? "−" : "+"}</span>
-                  </button>
-                  {expandedGen === gen.id && gen.ideas && gen.ideas.length > 0 && (
-                    <div className="px-4 pb-4 space-y-3">
-                      {gen.ideas.map((idea, idx) => (
-                        <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <p className="text-blue-400 font-medium mb-1">{idea.hook || idea.title}</p>
-                          <p className="text-gray-400 text-sm">{idea.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Generate Modal */}
-      {showGenerateModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Generate New Ideas</h2>
-                <button onClick={() => setShowGenerateModal(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
-              </div>
-              {!newIdeas ? (
-                <>
-                  <p className="text-gray-400 mb-6">Generate 10 new LinkedIn post ideas based on your profile.</p>
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <label className="text-white text-sm font-medium mb-2 block">Niche</label>
-                      <select value={genNiche} onChange={(e) => setGenNiche(e.target.value)} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        {NICHES.map(n => <option key={n} value={n} className="bg-slate-800">{n}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-white text-sm font-medium mb-2 block">Target Audience</label>
-                      <textarea value={genAudience} onChange={(e) => setGenAudience(e.target.value)} rows={3} placeholder="Who do you help?" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-                    </div>
-                  </div>
-                  <button onClick={generateNewIdeas} disabled={generating} className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
-                    {generating ? <span className="flex items-center justify-center gap-2"><span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Generating...</span> : "Generate 10 Ideas"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-green-400 mb-4">✓ Generated {newIdeas.length} new ideas!</p>
-                  <div className="space-y-3 mb-6 max-h-80 overflow-y-auto">
-                    {newIdeas.map((idea, idx) => (
-                      <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/10">
-                        <p className="text-blue-400 font-medium mb-1">{idea.title}</p>
-                        <p className="text-gray-400 text-sm">{idea.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => setNewIdeas(null)} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Generate More</button>
-                    <button onClick={() => setShowGenerateModal(false)} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90">Done</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Post Modal */}
+      {/* Edit Modal */}
       {editingPost && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Edit Post</h2>
-                <button onClick={closeEditModal} className="text-gray-400 hover:text-white text-2xl">×</button>
+                <button onClick={closeEditModal} className="text-gray-400 hover:text-white text-2xl">x</button>
               </div>
-              
+
               <div className="space-y-4 mb-6">
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">Title (optional)</label>
                   <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Post title or hook" className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                
+
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">Tone</label>
                   <div className="flex gap-2">
@@ -551,7 +547,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">Content</label>
                   <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={12} className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono text-sm" />
@@ -564,7 +560,7 @@ export default function Dashboard() {
                   {deleting ? "..." : "Delete"}
                 </button>
                 <button onClick={closeEditModal} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Cancel</button>
-                <button onClick={savePost} disabled={saving} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
+                <button onClick={updatePost} disabled={saving} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
