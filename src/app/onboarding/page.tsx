@@ -74,11 +74,23 @@ export default function Onboarding() {
   const [timezone, setTimezone] = useState("America/New_York");
 
   const [submitting, setSubmitting] = useState(false);
+  const [submittingSeconds, setSubmittingSeconds] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Timer for submitting progress
+  useEffect(() => {
+    if (submitting) {
+      setSubmittingSeconds(0);
+      const interval = setInterval(() => {
+        setSubmittingSeconds(prev => prev + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [submitting]);
 
   const checkAuth = async () => {
     try {
@@ -320,7 +332,12 @@ export default function Onboarding() {
             <div className="flex gap-3">
               <button onClick={() => setStep(4)} className="px-6 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20">Back</button>
               <button onClick={handleSubmit} disabled={submitting} className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
-                {submitting ? "Creating your content..." : "Complete Setup"}
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creating your content... {submittingSeconds}s
+                  </span>
+                ) : "Complete Setup"}
               </button>
             </div>
           </div>
