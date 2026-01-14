@@ -74,8 +74,8 @@ export default function Dashboard() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
 
-  // Active view: 'ideas', 'saved', or 'published'
-  const [activeView, setActiveView] = useState<'ideas' | 'saved' | 'published'>('ideas');
+  // Active view: 'ideas' or 'published'
+  const [activeView, setActiveView] = useState<'ideas' | 'published'>('ideas');
 
   // Generate state
   const [generating, setGenerating] = useState(false);
@@ -455,7 +455,7 @@ export default function Dashboard() {
               <p className="text-gray-400 text-sm">{data.user.userType} in {data.user.niche}</p>
             </div>
             <div className="text-right text-sm">
-              <div className="text-white font-medium">{data.stats.savedCount} saved</div>
+              <div className="text-white font-medium">{data.savedPosts.filter(p => p.published_at).length} posted</div>
               <div className="text-gray-400">{data.stats.generationCount} generations</div>
             </div>
           </div>
