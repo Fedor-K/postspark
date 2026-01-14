@@ -1,32 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import { cookies } from "next/headers";
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Get session to verify user
     const cookieStore = await cookies();
-    const sessionId = cookieStore.get("session_id")?.value;
+    const sessionToken = cookieStore.get("session")?.value;
 
-    if (!sessionId) {
+    if (!sessionToken) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Verify session and get user email
-    const session = await sql`
-      SELECT user_email FROM sessions
-      WHERE id = ${sessionId} AND expires_at > NOW()
+    // Verify session and get user info
+    const sessions = await sql`
+      SELECT s.user_id, u.email
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.session_token = ${sessionToken} AND s.expires_at > NOW()
     `;
 
-    if (session.length === 0) {
+    if (sessions.length === 0) {
       return NextResponse.json({ error: "Session expired" }, { status: 401 });
     }
 
-    const email = session[0].user_email;
+    const userId = sessions[0].user_id;
 
-    // Reset onboarding fields (keep email, ref_code, created_at)
+    // Reset onboarding fields (keep email, ref_code, created_at, saved_posts, generations)
     await sql`
       UPDATE users
       SET user_type = NULL,
@@ -39,15 +41,15 @@ export async function POST(request: NextRequest) {
           email_days = NULL,
           email_time = NULL,
           timezone = NULL
-      WHERE email = ${email}
+      WHERE id = ${userId}
     `;
 
     // Delete session to force re-login after onboarding
-    await sql`DELETE FROM sessions WHERE id = ${sessionId}`;
+    await sql`DELETE FROM sessions WHERE session_token = ${sessionToken}`;
 
     // Clear session cookie
     const response = NextResponse.json({ success: true, message: "Onboarding reset. Please complete onboarding again." });
-    response.cookies.delete("session_id");
+    response.cookies.delete("session");
 
     return response;
   } catch (error: unknown) {
