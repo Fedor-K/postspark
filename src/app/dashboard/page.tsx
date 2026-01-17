@@ -72,6 +72,20 @@ interface PostVersions {
   storytelling: string;
 }
 
+interface AnalyzedAccount {
+  handle: string;
+  name: string;
+  bio: string;
+  tweets: { text: string; likes: number; retweets: number }[];
+  styleAnalysis: {
+    avgLength: number;
+    usesEmojis: boolean;
+    usesHashtags: boolean;
+    commonPatterns: string[];
+    tone: string;
+  };
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -116,6 +130,10 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTwitterAccounts, setSettingsTwitterAccounts] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
+  const [analyzingAccounts, setAnalyzingAccounts] = useState(false);
+  const [analyzedAccounts, setAnalyzedAccounts] = useState<AnalyzedAccount[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [analyzeError, setAnalyzeError] = useState("");
 
   useEffect(() => {
     checkSession();
@@ -424,12 +442,67 @@ export default function Dashboard() {
 
   const openSettings = () => {
     setSettingsTwitterAccounts(data?.user.twitterAccountsToCopy || "");
+    setAnalyzedAccounts([]);
+    setSelectedAccounts([]);
+    setAnalyzeError("");
     setShowSettings(true);
+  };
+
+  const analyzeTwitterAccounts = async () => {
+    if (!settingsTwitterAccounts.trim()) return;
+
+    setAnalyzingAccounts(true);
+    setAnalyzeError("");
+
+    const handles = settingsTwitterAccounts
+      .split(/[,\s]+/)
+      .map(h => h.trim().replace('@', ''))
+      .filter(Boolean)
+      .slice(0, 5);
+
+    try {
+      const res = await fetch("/api/twitter/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handles }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to analyze");
+      }
+
+      setAnalyzedAccounts(result.accounts || []);
+      // Select all by default
+      setSelectedAccounts(result.accounts?.map((a: AnalyzedAccount) => a.handle) || []);
+
+      if (result.errors?.length > 0) {
+        setAnalyzeError(result.errors.join(", "));
+      }
+    } catch (err: unknown) {
+      setAnalyzeError(err instanceof Error ? err.message : "Failed to analyze accounts");
+    } finally {
+      setAnalyzingAccounts(false);
+    }
+  };
+
+  const toggleAccountSelection = (handle: string) => {
+    setSelectedAccounts(prev =>
+      prev.includes(handle)
+        ? prev.filter(h => h !== handle)
+        : [...prev, handle]
+    );
   };
 
   const saveSettings = async () => {
     if (!data) return;
     setSavingSettings(true);
+
+    // Save only selected accounts
+    const accountsToSave = selectedAccounts.length > 0
+      ? selectedAccounts.map(h => `@${h}`).join(", ")
+      : settingsTwitterAccounts;
 
     try {
       const res = await fetch("/api/users", {
@@ -437,7 +510,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: data.user.email,
-          twitterAccountsToCopy: settingsTwitterAccounts,
+          twitterAccountsToCopy: accountsToSave,
         }),
       });
 
@@ -758,32 +831,137 @@ export default function Dashboard() {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-slate-800 rounded-2xl max-w-2xl w-full my-8">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Settings</h2>
+                <h2 className="text-xl font-bold text-white">Style Settings</h2>
                 <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
               </div>
 
               <div className="space-y-4 mb-6">
+                {/* Input + Analyze */}
                 <div>
-                  <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
-                    <span>✨</span> Twitter accounts to copy style from
+                  <label className="text-white text-sm font-medium mb-2 block">
+                    Twitter accounts to copy style from
                   </label>
-                  <input
-                    type="text"
-                    value={settingsTwitterAccounts}
-                    onChange={(e) => setSettingsTwitterAccounts(e.target.value)}
-                    placeholder="@naval, @levelsio, @sahil (up to 3)"
-                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-gray-500 text-xs mt-2">We'll analyze their tweets and generate content in a similar style</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={settingsTwitterAccounts}
+                      onChange={(e) => setSettingsTwitterAccounts(e.target.value)}
+                      placeholder="@levelsio, @marc_louvion, @shl"
+                      className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={analyzeTwitterAccounts}
+                      disabled={analyzingAccounts || !settingsTwitterAccounts.trim()}
+                      className="px-6 py-3 bg-purple-500 text-white font-medium rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {analyzingAccounts ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Analyzing...
+                        </span>
+                      ) : "🔍 Analyze"}
+                    </button>
+                  </div>
+                  <p className="text-gray-500 text-xs mt-2">Enter up to 5 accounts, separated by commas</p>
                 </div>
 
-                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <p className="text-blue-300 text-sm">💡 Tip: Pick accounts with a writing style you admire. Their tone, emoji usage, and patterns will influence your generated posts.</p>
-                </div>
+                {/* Error */}
+                {analyzeError && (
+                  <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                    <p className="text-red-300 text-sm">{analyzeError}</p>
+                  </div>
+                )}
+
+                {/* Analyzed Accounts */}
+                {analyzedAccounts.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-white text-sm font-medium">Select accounts to use:</p>
+                    {analyzedAccounts.map((account) => (
+                      <div
+                        key={account.handle}
+                        onClick={() => toggleAccountSelection(account.handle)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          selectedAccounts.includes(account.handle)
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-white/10 bg-white/5 hover:border-white/30"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Checkbox */}
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-1 ${
+                            selectedAccounts.includes(account.handle)
+                              ? "bg-blue-500 border-blue-500"
+                              : "border-gray-500"
+                          }`}>
+                            {selectedAccounts.includes(account.handle) && (
+                              <span className="text-white text-xs">✓</span>
+                            )}
+                          </div>
+
+                          {/* Account Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-white font-semibold">{account.name}</span>
+                              <span className="text-gray-400 text-sm">@{account.handle}</span>
+                            </div>
+
+                            {/* Style Analysis */}
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">
+                                {account.styleAnalysis.tone}
+                              </span>
+                              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full">
+                                ~{account.styleAnalysis.avgLength} chars
+                              </span>
+                              {account.styleAnalysis.usesEmojis && (
+                                <span className="px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs rounded-full">
+                                  Uses emojis
+                                </span>
+                              )}
+                              {account.styleAnalysis.usesHashtags && (
+                                <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-full">
+                                  Uses hashtags
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Patterns */}
+                            {account.styleAnalysis.commonPatterns.length > 0 && (
+                              <div className="text-gray-400 text-xs mb-3">
+                                Patterns: {account.styleAnalysis.commonPatterns.join(", ")}
+                              </div>
+                            )}
+
+                            {/* Top Tweet Preview */}
+                            {account.tweets.length > 0 && (
+                              <div className="p-3 bg-black/30 rounded-lg">
+                                <p className="text-gray-300 text-xs mb-1">Top tweet:</p>
+                                <p className="text-white text-sm line-clamp-3">
+                                  {account.tweets[0].text.slice(0, 200)}{account.tweets[0].text.length > 200 ? "..." : ""}
+                                </p>
+                                <div className="flex gap-3 mt-2 text-gray-500 text-xs">
+                                  <span>❤️ {account.tweets[0].likes}</span>
+                                  <span>🔄 {account.tweets[0].retweets}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Tip when no accounts analyzed */}
+                {analyzedAccounts.length === 0 && (
+                  <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <p className="text-blue-300 text-sm">💡 Enter Twitter handles and click "Analyze" to see their writing style. Then select which styles to copy.</p>
+                  </div>
+                )}
 
                 <button
                   onClick={handleResetOnboarding}
@@ -798,8 +976,12 @@ export default function Dashboard() {
                 <button onClick={() => setShowSettings(false)} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">
                   Cancel
                 </button>
-                <button onClick={saveSettings} disabled={savingSettings} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
-                  {savingSettings ? "Saving..." : "Save"}
+                <button
+                  onClick={saveSettings}
+                  disabled={savingSettings || (analyzedAccounts.length > 0 && selectedAccounts.length === 0)}
+                  className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingSettings ? "Saving..." : selectedAccounts.length > 0 ? `Save ${selectedAccounts.length} account${selectedAccounts.length > 1 ? 's' : ''}` : "Save"}
                 </button>
               </div>
             </div>
