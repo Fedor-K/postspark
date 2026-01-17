@@ -46,6 +46,7 @@ interface User {
   linkedinName: string | null;
   linkedinHeadline: string | null;
   twitterHandle: string | null;
+  twitterAccountsToCopy: string | null;
   emailFrequency: string | null;
   emailDays: string | null;
   emailTime: string | null;
@@ -251,6 +252,7 @@ export default function Dashboard() {
           niche: data.user.niche,
           targetAudience: data.user.targetAudience,
           platform: platform,
+          twitterAccountsToCopy: data.user.twitterAccountsToCopy,
         }),
       });
       const result = await res.json();

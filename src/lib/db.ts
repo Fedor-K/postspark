@@ -31,6 +31,13 @@ export async function initDB() {
     // Column might already exist
   }
 
+  // Add twitter_accounts_to_copy column for style copying feature
+  try {
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_accounts_to_copy TEXT`;
+  } catch {
+    // Column might already exist
+  }
+
   await sql`
     CREATE TABLE IF NOT EXISTS generations (
       id SERIAL PRIMARY KEY,

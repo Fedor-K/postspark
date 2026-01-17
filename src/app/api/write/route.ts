@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { Platform } from "@/types";
 import { THREAD_SEPARATOR } from "@/lib/constants";
+import { scrapeMultipleAccounts, generateStylePrompt } from "@/lib/twitter-scraper";
 
 const openai = new OpenAI({
   apiKey: process.env.ZAI_API_KEY,
@@ -91,7 +92,8 @@ function createTwitterPrompt(
   profile: ProfileInfo | null,
   userType: string,
   niche: string,
-  targetAudience: string
+  targetAudience: string,
+  stylePrompt: string = ""
 ): string {
   const toneInstructions: Record<string, string> = {
     punchy: `
@@ -132,6 +134,7 @@ TONE: Thread (Educational/Story)
 - Name: ${profile?.name || "Creator"}
 ${profile?.twitterHandle ? `- Handle: @${profile.twitterHandle.replace('@', '')}` : ''}
 - Target Audience: ${targetAudience}
+${stylePrompt}
 
 ## POST IDEA:
 - Hook: ${title}
@@ -170,6 +173,7 @@ Write the thread now. Return ONLY the tweets separated by ---, nothing else:`;
 - Name: ${profile?.name || "Creator"}
 ${profile?.twitterHandle ? `- Handle: @${profile.twitterHandle.replace('@', '')}` : ''}
 - Target Audience: ${targetAudience}
+${stylePrompt}
 
 ## POST IDEA:
 - Hook: ${title}
@@ -190,19 +194,42 @@ ${toneInstructions[tone] || toneInstructions.punchy}
 - Be authentic and direct
 - No corporate speak
 - Make every word count
+${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}
 
 Write the tweet now. Return ONLY the tweet text, nothing else:`;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, description, format, profile, userType, niche, targetAudience, platform = 'linkedin' } = await request.json();
+    const { title, description, format, profile, userType, niche, targetAudience, platform = 'linkedin', twitterAccountsToCopy } = await request.json();
 
     if (!title) {
       return NextResponse.json({ error: "Missing title" }, { status: 400 });
     }
 
     const platformTyped = platform as Platform;
+
+    // Scrape Twitter accounts to copy style from (if provided)
+    let stylePrompt = "";
+
+    if (platformTyped === 'twitter' && twitterAccountsToCopy) {
+      const handles = twitterAccountsToCopy
+        .split(/[,\s]+/)
+        .map((h: string) => h.trim().replace('@', ''))
+        .filter(Boolean)
+        .slice(0, 3);
+
+      if (handles.length > 0) {
+        try {
+          const scrapedAccounts = await scrapeMultipleAccounts(handles);
+          if (scrapedAccounts.length > 0) {
+            stylePrompt = generateStylePrompt(scrapedAccounts);
+          }
+        } catch (e) {
+          console.log("Twitter scraping failed for write", e);
+        }
+      }
+    }
 
     // Different tones for different platforms
     const tones = platformTyped === 'twitter'
@@ -211,24 +238,44 @@ export async function POST(request: NextRequest) {
 
     const completions = await Promise.all(
       tones.map(tone => {
-        const promptFn = platformTyped === 'twitter' ? createTwitterPrompt : createLinkedInPrompt;
-        return openai.chat.completions.create({
-          model: "glm-4.5-air",
-          messages: [{
-            role: "user",
-            content: promptFn(
-              title,
-              description,
-              format,
-              tone,
-              profile,
-              userType || "solopreneur",
-              niche || "business",
-              targetAudience || ""
-            )
-          }],
-          temperature: 0.8,
-        });
+        if (platformTyped === 'twitter') {
+          return openai.chat.completions.create({
+            model: "glm-4.5-air",
+            messages: [{
+              role: "user",
+              content: createTwitterPrompt(
+                title,
+                description,
+                format,
+                tone,
+                profile,
+                userType || "solopreneur",
+                niche || "business",
+                targetAudience || "",
+                stylePrompt
+              )
+            }],
+            temperature: 0.8,
+          });
+        } else {
+          return openai.chat.completions.create({
+            model: "glm-4.5-air",
+            messages: [{
+              role: "user",
+              content: createLinkedInPrompt(
+                title,
+                description,
+                format,
+                tone,
+                profile,
+                userType || "solopreneur",
+                niche || "business",
+                targetAudience || ""
+              )
+            }],
+            temperature: 0.8,
+          });
+        }
       })
     );
 

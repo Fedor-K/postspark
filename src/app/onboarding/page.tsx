@@ -68,6 +68,7 @@ export default function Onboarding() {
   const [targetAudience, setTargetAudience] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
+  const [twitterAccountsToCopy, setTwitterAccountsToCopy] = useState("");
 
   const [emailFrequency, setEmailFrequency] = useState("twice_weekly");
   const [emailDays, setEmailDays] = useState<string[]>(["tuesday", "thursday"]);
@@ -145,6 +146,7 @@ export default function Onboarding() {
           targetAudience,
           linkedinUrl: linkedinUrl || null,
           twitterHandle: twitterHandle || null,
+          twitterAccountsToCopy: twitterAccountsToCopy || null,
           emailFrequency,
           emailDays: emailDays.join(","),
           emailTime,
@@ -337,9 +339,24 @@ export default function Onboarding() {
             {/* Twitter */}
             <div className="space-y-2">
               <label className="text-white text-sm font-medium flex items-center gap-2">
-                <span className="text-lg">𝕏</span> Twitter/X Handle
+                <span className="text-lg">𝕏</span> Your Twitter/X Handle
               </label>
               <input type="text" value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value.replace('@', ''))} placeholder="yourhandle (without @)" className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            {/* Twitter accounts to copy */}
+            <div className="space-y-2">
+              <label className="text-white text-sm font-medium flex items-center gap-2">
+                <span className="text-lg">✨</span> Twitter accounts to copy style from
+              </label>
+              <input
+                type="text"
+                value={twitterAccountsToCopy}
+                onChange={(e) => setTwitterAccountsToCopy(e.target.value)}
+                placeholder="@naval, @sahaborgs, @levelsio (up to 3)"
+                className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-gray-500 text-xs">We'll analyze their tweets and generate content in a similar style</p>
             </div>
 
             <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">

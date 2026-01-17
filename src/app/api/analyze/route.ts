@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { neon } from "@neondatabase/serverless";
 import { sendEmail, generateWelcomeEmail } from "@/lib/email";
 import { Platform } from "@/types";
+import { scrapeMultipleAccounts, generateStylePrompt, TwitterAccountStyle } from "@/lib/twitter-scraper";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -93,7 +94,8 @@ async function saveUserAndGeneration(
   timezone: string,
   ideas: Topic[],
   platform: Platform = 'linkedin',
-  twitterHandle: string | null = null
+  twitterHandle: string | null = null,
+  twitterAccountsToCopy: string | null = null
 ): Promise<{ user: Record<string, unknown>; isNew: boolean }> {
   let user = await sql`SELECT * FROM users WHERE email = ${email}`;
   let isNew = false;
@@ -101,8 +103,8 @@ async function saveUserAndGeneration(
   if (user.length === 0) {
     const refCode = generateRefCode();
     user = await sql`
-      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, twitter_handle, ref_code, email_frequency, email_days, email_time, timezone)
-      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${twitterHandle}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
+      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, twitter_handle, twitter_accounts_to_copy, ref_code, email_frequency, email_days, email_time, timezone)
+      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${twitterHandle}, ${twitterAccountsToCopy}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
       RETURNING *
     `;
     isNew = true;
@@ -111,7 +113,10 @@ async function saveUserAndGeneration(
       UPDATE users
       SET user_type = ${userType}, niche = ${niche}, target_audience = ${targetAudience},
           linkedin_url = ${linkedinUrl}, linkedin_name = ${linkedinName},
-          linkedin_headline = ${linkedinHeadline}, twitter_handle = COALESCE(${twitterHandle}, twitter_handle), last_active = NOW(),
+          linkedin_headline = ${linkedinHeadline},
+          twitter_handle = COALESCE(${twitterHandle}, twitter_handle),
+          twitter_accounts_to_copy = COALESCE(${twitterAccountsToCopy}, twitter_accounts_to_copy),
+          last_active = NOW(),
           email_frequency = ${emailFrequency}, email_days = ${emailDays}, email_time = ${emailTime}, timezone = ${timezone}
       WHERE email = ${email}
       RETURNING *
@@ -200,7 +205,7 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
 
 export async function POST(request: NextRequest) {
   try {
-    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone, platform = 'linkedin', twitterHandle } = await request.json();
+    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone, platform = 'linkedin', twitterHandle, twitterAccountsToCopy } = await request.json();
 
     if (!email || !userType || !niche || !targetAudience) {
       return NextResponse.json(
@@ -227,6 +232,31 @@ export async function POST(request: NextRequest) {
       freelancer: "Freelancer"
     };
 
+    // Scrape Twitter accounts to copy style from
+    let stylePrompt = "";
+    let scrapedAccounts: TwitterAccountStyle[] = [];
+
+    if (platform === 'twitter' && twitterAccountsToCopy) {
+      const handles = twitterAccountsToCopy
+        .split(/[,\s]+/)
+        .map((h: string) => h.trim().replace('@', ''))
+        .filter(Boolean)
+        .slice(0, 3);
+
+      if (handles.length > 0) {
+        console.log(`Scraping Twitter accounts for style: ${handles.join(', ')}`);
+        try {
+          scrapedAccounts = await scrapeMultipleAccounts(handles);
+          if (scrapedAccounts.length > 0) {
+            stylePrompt = generateStylePrompt(scrapedAccounts);
+            console.log(`Style analysis complete for ${scrapedAccounts.length} accounts`);
+          }
+        } catch (e) {
+          console.log("Twitter scraping failed, continuing without style analysis", e);
+        }
+      }
+    }
+
     let prompt: string;
 
     if (platform === 'twitter') {
@@ -239,6 +269,7 @@ WHO YOU ARE WRITING FOR:
 ${profile ? `- Name: ${profile.name}
 - Expertise: ${profile.headline}` : ""}
 ${twitterHandle ? `- Twitter Handle: @${twitterHandle.replace('@', '')}` : ""}
+${stylePrompt}
 
 YOUR TASK:
 Generate 10 Twitter post ideas that will help this ${userTypeLabels[userType]} grow their audience and attract clients.
@@ -262,6 +293,7 @@ IMPORTANT:
 - Focus on topics that spark engagement (replies, retweets)
 - Use numbers and specific outcomes in hooks
 - Vary the formats across the 10 ideas
+${scrapedAccounts.length > 0 ? '- CRITICAL: Match the style and tone of the accounts mentioned above' : ''}
 
 Return ONLY valid JSON in this exact format:
 {"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"single-tweet"}]}`;
@@ -335,7 +367,8 @@ Return ONLY valid JSON in this exact format:
       timezone || "America/New_York",
       topics,
       platform as Platform,
-      twitterHandle || null
+      twitterHandle || null,
+      twitterAccountsToCopy || null
     );
 
     if (isNew) {
