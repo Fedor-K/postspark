@@ -36,7 +36,7 @@ export async function scrapeTwitterAccount(handle: string): Promise<TwitterAccou
 
     // Use Apify's Twitter scraper
     const run = await apify.actor("apidojo/tweet-scraper").call({
-      startUrls: [{ url: `https://twitter.com/${cleanHandle}` }],
+      startUrls: [`https://twitter.com/${cleanHandle}`],
       maxTweets: 20,
       addUserInfo: true,
       scrapeTweetReplies: false,
