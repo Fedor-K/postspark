@@ -43,30 +43,20 @@ export const THREAD_SEPARATOR = '\n---\n';
 
 // Helper to parse thread content into individual tweets
 export function parseThread(content: string): string[] {
-  // Try multiple separator patterns
-  const separators = [
-    THREAD_SEPARATOR,
-    /\n\d+\/\d+\n/,  // Pattern like "1/5"
-    /\n---+\n/,       // Multiple dashes
-  ];
+  // Normalize various separator patterns to a single format
+  let normalized = content
+    // Handle multiple dashes with any whitespace around them
+    .replace(/\s*---+\s*/g, '\n|||SPLIT|||\n')
+    // Also split on numbered patterns like "2/" at start of line
+    .replace(/\n(\d+\/)/g, '\n|||SPLIT|||\n$1');
 
-  let tweets = [content];
+  // Split by our normalized separator
+  const tweets = normalized
+    .split('|||SPLIT|||')
+    .map(t => t.trim())
+    .filter(Boolean);
 
-  for (const sep of separators) {
-    if (typeof sep === 'string') {
-      if (content.includes(sep)) {
-        tweets = content.split(sep).map(t => t.trim()).filter(Boolean);
-        break;
-      }
-    } else {
-      if (sep.test(content)) {
-        tweets = content.split(sep).map(t => t.trim()).filter(Boolean);
-        break;
-      }
-    }
-  }
-
-  return tweets;
+  return tweets.length > 0 ? tweets : [content];
 }
 
 // Helper to check if content is a thread
