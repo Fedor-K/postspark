@@ -4,15 +4,20 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CharacterCounter from "../../components/CharacterCounter";
 import LinkedInPreview from "../../components/LinkedInPreview";
+import TwitterPreview from "../../components/TwitterPreview";
+import PlatformSelector from "../../components/PlatformSelector";
 import HooksLibrary from "../../components/HooksLibrary";
 import CTAsLibrary from "../../components/CTAsLibrary";
 import TextFormatter from "../../components/TextFormatter";
+import { Platform } from "@/types";
+import { PLATFORM_CONFIGS, STORAGE_KEYS } from "@/lib/constants";
 
 interface SavedPost {
   id: number;
   idea_title: string;
   post_content: string;
   tone: string;
+  platform: Platform;
   created_at: string;
   published_at: string | null;
 }
@@ -40,6 +45,7 @@ interface User {
   linkedinUrl: string | null;
   linkedinName: string | null;
   linkedinHeadline: string | null;
+  twitterHandle: string | null;
   emailFrequency: string | null;
   emailDays: string | null;
   emailTime: string | null;
@@ -74,6 +80,9 @@ export default function Dashboard() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
 
+  // Platform state
+  const [platform, setPlatform] = useState<Platform>('linkedin');
+
   // Active view: 'ideas' or 'published'
   const [activeView, setActiveView] = useState<'ideas' | 'published'>('ideas');
 
@@ -104,7 +113,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     checkSession();
+    // Load platform from localStorage
+    const savedPlatform = localStorage.getItem(STORAGE_KEYS.PLATFORM) as Platform;
+    if (savedPlatform && (savedPlatform === 'linkedin' || savedPlatform === 'twitter')) {
+      setPlatform(savedPlatform);
+    }
   }, []);
+
+  // Save platform to localStorage when it changes
+  const handlePlatformChange = (newPlatform: Platform) => {
+    setPlatform(newPlatform);
+    localStorage.setItem(STORAGE_KEYS.PLATFORM, newPlatform);
+    // Clear generated posts when switching platforms
+    setGeneratedPosts({});
+    setSelectedTone({});
+    setEditedContent({});
+  };
 
   const checkSession = async () => {
     try {
@@ -175,6 +199,7 @@ export default function Dashboard() {
     setGeneratedPosts({});
     setPublishedPosts({});
     setSelectedTone({});
+    setEditedContent({});
 
     try {
       const res = await fetch("/api/analyze", {
@@ -186,10 +211,12 @@ export default function Dashboard() {
           niche: data.user.niche,
           targetAudience: data.user.targetAudience,
           linkedinUrl: data.user.linkedinUrl,
+          twitterHandle: data.user.twitterHandle,
           emailFrequency: data.user.emailFrequency,
           emailDays: data.user.emailDays,
           emailTime: data.user.emailTime,
           timezone: data.user.timezone,
+          platform: platform,
         }),
       });
 
@@ -215,17 +242,24 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...idea,
-          profile: { name: data.user.linkedinName, headline: data.user.linkedinHeadline },
+          profile: {
+            name: data.user.linkedinName,
+            headline: data.user.linkedinHeadline,
+            twitterHandle: data.user.twitterHandle,
+          },
           userType: data.user.userType,
           niche: data.user.niche,
           targetAudience: data.user.targetAudience,
+          platform: platform,
         }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       setGeneratedPosts(prev => ({ ...prev, [index]: result.posts }));
-      setSelectedTone(prev => ({ ...prev, [index]: "professional" }));
-      setEditedContent(prev => ({ ...prev, [index]: result.posts.professional }));
+      // Set default tone based on platform
+      const defaultTone = platform === 'twitter' ? 'punchy' : 'professional';
+      setSelectedTone(prev => ({ ...prev, [index]: defaultTone }));
+      setEditedContent(prev => ({ ...prev, [index]: result.posts[defaultTone] }));
       setEditingIndex(index);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to write post");
@@ -286,7 +320,7 @@ export default function Dashboard() {
       const saveRes = await fetch("/api/posts/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.user.email, content, tone, title }),
+        body: JSON.stringify({ email: data.user.email, content, tone, title, platform }),
       });
       const saveData = await saveRes.json();
 
@@ -418,7 +452,8 @@ export default function Dashboard() {
             </div>
             <span className="text-2xl font-bold text-white">PostSpark</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <PlatformSelector platform={platform} onChange={handlePlatformChange} />
             <button
               onClick={generateNewIdeas}
               disabled={generating}
@@ -499,16 +534,17 @@ export default function Dashboard() {
                     <div className="mt-4 space-y-4">
                       {/* Tone Selector */}
                       <div className="flex gap-2">
-                        {(["professional", "casual", "storytelling"] as const).map((tone) => (
+                        {PLATFORM_CONFIGS[platform].tones.map((toneConfig) => (
                           <button
-                            key={tone}
+                            key={toneConfig.id}
                             onClick={() => {
-                              setSelectedTone(prev => ({ ...prev, [index]: tone }));
-                              setEditedContent(prev => ({ ...prev, [index]: generatedPosts[index][tone] }));
+                              setSelectedTone(prev => ({ ...prev, [index]: toneConfig.id }));
+                              setEditedContent(prev => ({ ...prev, [index]: generatedPosts[index][toneConfig.id as keyof PostVersions] }));
                             }}
-                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedTone[index] === tone ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedTone[index] === toneConfig.id ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                            title={toneConfig.description}
                           >
-                            {tone === "professional" ? "Professional" : tone === "casual" ? "Casual" : "Storytelling"}
+                            {toneConfig.label}
                           </button>
                         ))}
                       </div>
@@ -528,7 +564,7 @@ export default function Dashboard() {
                       />
 
                       {/* Character Counter */}
-                      <CharacterCounter text={getCurrentContent(index)} />
+                      <CharacterCounter text={getCurrentContent(index)} platform={platform} />
 
                       {/* Tool Buttons */}
                       <div className="flex gap-2">
@@ -566,14 +602,22 @@ export default function Dashboard() {
                         </div>
                       )}
 
-                      {/* LinkedIn Preview */}
+                      {/* Platform Preview */}
                       {showPreview === index && (
                         <div className="p-4 bg-slate-800 rounded-lg">
-                          <LinkedInPreview
-                            content={getCurrentContent(index)}
-                            authorName={data?.user.linkedinName || "Your Name"}
-                            authorHeadline={data?.user.linkedinHeadline || undefined}
-                          />
+                          {platform === 'twitter' ? (
+                            <TwitterPreview
+                              content={getCurrentContent(index)}
+                              authorName={data?.user.linkedinName || "Your Name"}
+                              authorHandle={data?.user.twitterHandle || undefined}
+                            />
+                          ) : (
+                            <LinkedInPreview
+                              content={getCurrentContent(index)}
+                              authorName={data?.user.linkedinName || "Your Name"}
+                              authorHeadline={data?.user.linkedinHeadline || undefined}
+                            />
+                          )}
                         </div>
                       )}
 
@@ -677,7 +721,7 @@ export default function Dashboard() {
       )}
 
       <footer className="border-t border-white/10 py-6 text-center text-gray-500 text-sm">
-        PostSpark - LinkedIn Content for Solopreneurs & Coaches
+        PostSpark - Content for Solopreneurs & Coaches
       </footer>
     </div>
   );

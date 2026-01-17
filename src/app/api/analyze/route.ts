@@ -3,6 +3,7 @@ import { ApifyClient } from "apify-client";
 import OpenAI from "openai";
 import { neon } from "@neondatabase/serverless";
 import { sendEmail, generateWelcomeEmail } from "@/lib/email";
+import { Platform } from "@/types";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -90,25 +91,27 @@ async function saveUserAndGeneration(
   emailDays: string,
   emailTime: string,
   timezone: string,
-  ideas: Topic[]
+  ideas: Topic[],
+  platform: Platform = 'linkedin',
+  twitterHandle: string | null = null
 ): Promise<{ user: Record<string, unknown>; isNew: boolean }> {
   let user = await sql`SELECT * FROM users WHERE email = ${email}`;
   let isNew = false;
-  
+
   if (user.length === 0) {
     const refCode = generateRefCode();
     user = await sql`
-      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, ref_code, email_frequency, email_days, email_time, timezone)
-      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
+      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, twitter_handle, ref_code, email_frequency, email_days, email_time, timezone)
+      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${twitterHandle}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
       RETURNING *
     `;
     isNew = true;
   } else {
     user = await sql`
-      UPDATE users 
+      UPDATE users
       SET user_type = ${userType}, niche = ${niche}, target_audience = ${targetAudience},
-          linkedin_url = ${linkedinUrl}, linkedin_name = ${linkedinName}, 
-          linkedin_headline = ${linkedinHeadline}, last_active = NOW(),
+          linkedin_url = ${linkedinUrl}, linkedin_name = ${linkedinName},
+          linkedin_headline = ${linkedinHeadline}, twitter_handle = COALESCE(${twitterHandle}, twitter_handle), last_active = NOW(),
           email_frequency = ${emailFrequency}, email_days = ${emailDays}, email_time = ${emailTime}, timezone = ${timezone}
       WHERE email = ${email}
       RETURNING *
@@ -116,8 +119,8 @@ async function saveUserAndGeneration(
   }
 
   await sql`
-    INSERT INTO generations (user_id, ideas)
-    VALUES (${user[0].id}, ${JSON.stringify(ideas)})
+    INSERT INTO generations (user_id, ideas, platform)
+    VALUES (${user[0].id}, ${JSON.stringify(ideas)}, ${platform})
   `;
 
   return { user: user[0], isNew };
@@ -197,7 +200,7 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
 
 export async function POST(request: NextRequest) {
   try {
-    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone } = await request.json();
+    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone, platform = 'linkedin', twitterHandle } = await request.json();
 
     if (!email || !userType || !niche || !targetAudience) {
       return NextResponse.json(
@@ -224,7 +227,46 @@ export async function POST(request: NextRequest) {
       freelancer: "Freelancer"
     };
 
-    const prompt = `You are a viral LinkedIn ghostwriter specializing in content for ${userTypeLabels[userType] || userType}s.
+    let prompt: string;
+
+    if (platform === 'twitter') {
+      prompt = `You are a viral Twitter/X ghostwriter specializing in content for ${userTypeLabels[userType] || userType}s.
+
+WHO YOU ARE WRITING FOR:
+- Type: ${userTypeLabels[userType] || userType}
+- Niche: ${niche}
+- Target Audience: ${targetAudience}
+${profile ? `- Name: ${profile.name}
+- Expertise: ${profile.headline}` : ""}
+${twitterHandle ? `- Twitter Handle: @${twitterHandle.replace('@', '')}` : ""}
+
+YOUR TASK:
+Generate 10 Twitter post ideas that will help this ${userTypeLabels[userType]} grow their audience and attract clients.
+
+REQUIREMENTS FOR EACH IDEA:
+1. Hook (title): Scroll-stopping first line (max 50 characters). Must grab attention.
+2. Description: Brief summary of what the post covers
+3. Format: MUST be one of: single-tweet, thread-3, thread-5
+
+TWITTER HOOK FORMULAS THAT WORK:
+- Hot take: "[Controversial statement]"
+- Thread starter: "I [did X]. Here's what I learned:"
+- Listicle: "[Number] [things] that [outcome]:"
+- Pattern interrupt: "[Common belief] is wrong."
+- Story hook: "[Timeframe] ago I was [state]. Now I [outcome]."
+- Question: "Why do most [audience] [problem]?"
+
+IMPORTANT:
+- Make hooks PUNCHY and direct (Twitter rewards brevity)
+- 4-5 ideas should be single-tweet, 3-4 should be thread-3, 1-2 should be thread-5
+- Focus on topics that spark engagement (replies, retweets)
+- Use numbers and specific outcomes in hooks
+- Vary the formats across the 10 ideas
+
+Return ONLY valid JSON in this exact format:
+{"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"single-tweet"}]}`;
+    } else {
+      prompt = `You are a viral LinkedIn ghostwriter specializing in content for ${userTypeLabels[userType] || userType}s.
 
 WHO YOU ARE WRITING FOR:
 - Type: ${userTypeLabels[userType] || userType}
@@ -260,6 +302,7 @@ IMPORTANT:
 
 Return ONLY valid JSON in this exact format:
 {"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"tips"}]}`;
+    }
 
     console.log("Calling Z.ai API...");
     const completion = await openai.chat.completions.create({
@@ -290,7 +333,9 @@ Return ONLY valid JSON in this exact format:
       emailDays || "monday",
       emailTime || "09:00",
       timezone || "America/New_York",
-      topics
+      topics,
+      platform as Platform,
+      twitterHandle || null
     );
 
     if (isNew) {
@@ -321,6 +366,7 @@ Return ONLY valid JSON in this exact format:
       },
       niche: aiResponse.niche,
       topics: topics,
+      platform: platform,
     });
   } catch (error: unknown) {
     console.error("Analyze error:", error);

@@ -67,6 +67,7 @@ export default function Onboarding() {
   const [customNiche, setCustomNiche] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [twitterHandle, setTwitterHandle] = useState("");
 
   const [emailFrequency, setEmailFrequency] = useState("twice_weekly");
   const [emailDays, setEmailDays] = useState<string[]>(["tuesday", "thursday"]);
@@ -143,6 +144,7 @@ export default function Onboarding() {
           niche: effectiveNiche,
           targetAudience,
           linkedinUrl: linkedinUrl || null,
+          twitterHandle: twitterHandle || null,
           emailFrequency,
           emailDays: emailDays.join(","),
           emailTime,
@@ -318,15 +320,30 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* Step 5: LinkedIn (Optional) + Submit */}
+        {/* Step 5: Social Profiles (Optional) + Submit */}
         {step === 5 && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white text-center">LinkedIn Profile (Optional)</h2>
-            <p className="text-gray-400 text-center">We'll analyze your profile for more personalized ideas</p>
-            <input type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourprofile" className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <h2 className="text-2xl font-bold text-white text-center">Social Profiles (Optional)</h2>
+            <p className="text-gray-400 text-center">Add your profiles for more personalized ideas</p>
+
+            {/* LinkedIn */}
+            <div className="space-y-2">
+              <label className="text-white text-sm font-medium flex items-center gap-2">
+                <span className="text-lg">💼</span> LinkedIn Profile
+              </label>
+              <input type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourprofile" className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            {/* Twitter */}
+            <div className="space-y-2">
+              <label className="text-white text-sm font-medium flex items-center gap-2">
+                <span className="text-lg">𝕏</span> Twitter/X Handle
+              </label>
+              <input type="text" value={twitterHandle} onChange={(e) => setTwitterHandle(e.target.value.replace('@', ''))} placeholder="yourhandle (without @)" className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
 
             <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-              <p className="text-blue-300 text-sm">We'll generate 10 personalized LinkedIn post ideas based on your profile.</p>
+              <p className="text-blue-300 text-sm">We'll generate 10 personalized post ideas. You can switch between LinkedIn and Twitter in the dashboard.</p>
             </div>
 
             <div className="flex gap-3">

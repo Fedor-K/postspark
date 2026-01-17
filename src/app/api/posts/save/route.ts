@@ -5,21 +5,21 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, content, tone, title } = await request.json();
+    const { email, content, tone, title, platform = 'linkedin' } = await request.json();
 
     if (!email || !content) {
       return NextResponse.json({ error: "Email and content are required" }, { status: 400 });
     }
 
     const user = await sql`SELECT id FROM users WHERE email = ${email}`;
-    
+
     if (user.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const savedPost = await sql`
-      INSERT INTO saved_posts (user_id, idea_title, post_content, tone)
-      VALUES (${user[0].id}, ${title || null}, ${content}, ${tone || "professional"})
+      INSERT INTO saved_posts (user_id, idea_title, post_content, tone, platform)
+      VALUES (${user[0].id}, ${title || null}, ${content}, ${tone || "professional"}, ${platform})
       RETURNING *
     `;
 
@@ -33,17 +33,18 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, content, tone, title } = await request.json();
+    const { id, content, tone, title, platform } = await request.json();
 
     if (!id || !content) {
       return NextResponse.json({ error: "Post ID and content are required" }, { status: 400 });
     }
 
     const updatedPost = await sql`
-      UPDATE saved_posts 
-      SET post_content = ${content}, 
-          tone = ${tone || "professional"}, 
-          idea_title = ${title || null}
+      UPDATE saved_posts
+      SET post_content = ${content},
+          tone = ${tone || "professional"},
+          idea_title = ${title || null},
+          platform = COALESCE(${platform}, platform)
       WHERE id = ${id}
       RETURNING *
     `;

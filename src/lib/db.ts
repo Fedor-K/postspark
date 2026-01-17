@@ -16,6 +16,7 @@ export async function initDB() {
       linkedin_url VARCHAR(500),
       linkedin_name VARCHAR(255),
       linkedin_headline TEXT,
+      twitter_handle VARCHAR(100),
       ref_code VARCHAR(20) UNIQUE,
       referred_by VARCHAR(20),
       created_at TIMESTAMP DEFAULT NOW(),
@@ -23,14 +24,29 @@ export async function initDB() {
     )
   `;
 
+  // Add twitter_handle column if it doesn't exist (for existing databases)
+  try {
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_handle VARCHAR(100)`;
+  } catch {
+    // Column might already exist
+  }
+
   await sql`
     CREATE TABLE IF NOT EXISTS generations (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id),
       ideas JSONB NOT NULL,
+      platform VARCHAR(20) DEFAULT 'linkedin',
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  // Add platform column if it doesn't exist (for existing databases)
+  try {
+    await sql`ALTER TABLE generations ADD COLUMN IF NOT EXISTS platform VARCHAR(20) DEFAULT 'linkedin'`;
+  } catch {
+    // Column might already exist
+  }
 
   await sql`
     CREATE TABLE IF NOT EXISTS saved_posts (
@@ -39,9 +55,17 @@ export async function initDB() {
       idea_title TEXT,
       post_content TEXT NOT NULL,
       tone VARCHAR(50),
+      platform VARCHAR(20) DEFAULT 'linkedin',
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  // Add platform column if it doesn't exist (for existing databases)
+  try {
+    await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS platform VARCHAR(20) DEFAULT 'linkedin'`;
+  } catch {
+    // Column might already exist
+  }
 
   await sql`
     CREATE TABLE IF NOT EXISTS emails_sent (
