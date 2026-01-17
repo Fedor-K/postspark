@@ -112,6 +112,11 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Settings modal
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTwitterAccounts, setSettingsTwitterAccounts] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+
   useEffect(() => {
     checkSession();
     // Load platform from localStorage
@@ -417,6 +422,36 @@ export default function Dashboard() {
     }
   };
 
+  const openSettings = () => {
+    setSettingsTwitterAccounts(data?.user.twitterAccountsToCopy || "");
+    setShowSettings(true);
+  };
+
+  const saveSettings = async () => {
+    if (!data) return;
+    setSavingSettings(true);
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.user.email,
+          twitterAccountsToCopy: settingsTwitterAccounts,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save settings");
+
+      setShowSettings(false);
+      fetchDashboard(data.user.email);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to save settings");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
@@ -464,11 +499,10 @@ export default function Dashboard() {
               {generating ? "..." : "+ Generate"}
             </button>
             <button
-              onClick={handleResetOnboarding}
-              disabled={resettingOnboarding}
+              onClick={openSettings}
               className="px-3 py-2 text-gray-400 hover:text-white"
             >
-              {resettingOnboarding ? "..." : "Edit"}
+              ⚙️
             </button>
             <button onClick={handleLogout} disabled={loggingOut} className="px-3 py-2 text-gray-400 hover:text-white">
               {loggingOut ? "..." : "Logout"}
@@ -715,6 +749,57 @@ export default function Dashboard() {
                 <button onClick={closeEditModal} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">Cancel</button>
                 <button onClick={updatePost} disabled={saving} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
                   {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Settings</h2>
+                <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
+                    <span>✨</span> Twitter accounts to copy style from
+                  </label>
+                  <input
+                    type="text"
+                    value={settingsTwitterAccounts}
+                    onChange={(e) => setSettingsTwitterAccounts(e.target.value)}
+                    placeholder="@naval, @levelsio, @sahil (up to 3)"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-gray-500 text-xs mt-2">We'll analyze their tweets and generate content in a similar style</p>
+                </div>
+
+                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <p className="text-blue-300 text-sm">💡 Tip: Pick accounts with a writing style you admire. Their tone, emoji usage, and patterns will influence your generated posts.</p>
+                </div>
+
+                <button
+                  onClick={handleResetOnboarding}
+                  disabled={resettingOnboarding}
+                  className="w-full py-2 text-gray-400 text-sm hover:text-white transition-colors"
+                >
+                  {resettingOnboarding ? "Loading..." : "Edit full profile →"}
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setShowSettings(false)} className="flex-1 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20">
+                  Cancel
+                </button>
+                <button onClick={saveSettings} disabled={savingSettings} className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50">
+                  {savingSettings ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
