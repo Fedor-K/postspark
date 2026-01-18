@@ -34,10 +34,12 @@ export async function scrapeTwitterAccount(handle: string): Promise<TwitterAccou
     const cleanHandle = handle.replace('@', '').trim();
     console.log(`Scraping Twitter account: @${cleanHandle}`);
 
-    // Use Apify's Twitter scraper
+    // Use Apify's Twitter scraper - limit to 10 tweets for cost efficiency
     const run = await apify.actor("apidojo/tweet-scraper").call({
       startUrls: [`https://twitter.com/${cleanHandle}`],
-      maxTweets: 20,
+      maxTweets: 10,
+      maxItems: 10,
+      tweetsDesired: 10,
       addUserInfo: true,
       scrapeTweetReplies: false,
       proxyConfiguration: { useApifyProxy: true },
