@@ -207,9 +207,17 @@ export default function DashboardMVP() {
   };
 
   const handleWriteTopic = async (topic: Topic) => {
-    if (!user || !profile) return;
+    if (!user) {
+      setError("Пользователь не загружен");
+      return;
+    }
+    if (!profile) {
+      setError("Профиль не загружен. Обновите страницу.");
+      return;
+    }
 
     setWritingTopicId(topic.id);
+    setError(""); // Очистить предыдущую ошибку
 
     try {
       const res = await fetch("/api/write", {
@@ -217,15 +225,15 @@ export default function DashboardMVP() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: topic.title,
-          description: topic.angle,
+          description: topic.angle || topic.title,
           format: topic.format,
           profile: {
-            name: user.linkedinName || profile.name,
-            headline: user.linkedinHeadline,
+            name: user.linkedinName || profile.name || "Expert",
+            headline: user.linkedinHeadline || "",
           },
-          userType: profile.role,
-          niche: profile.niche,
-          targetAudience: profile.audience_who,
+          userType: profile.role || "solopreneur",
+          niche: profile.niche || "Business",
+          targetAudience: profile.audience_who || "professionals",
           platform: "linkedin",
         }),
       });
@@ -233,7 +241,12 @@ export default function DashboardMVP() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to write post");
+        setError(data.error || `Ошибка генерации: ${res.status}`);
+        return;
+      }
+
+      if (!data.posts || !data.posts.professional) {
+        setError("API вернул пустой ответ");
         return;
       }
 
@@ -243,8 +256,9 @@ export default function DashboardMVP() {
         tone: "professional",
       });
     } catch (err) {
-      setError("Failed to write post");
-      console.error(err);
+      const message = err instanceof Error ? err.message : "Неизвестная ошибка";
+      setError(`Ошибка: ${message}`);
+      console.error("Write topic error:", err);
     } finally {
       setWritingTopicId(null);
     }
