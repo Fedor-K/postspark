@@ -12,6 +12,16 @@ const openai = new OpenAI({
 type TopicStatus = "new" | "saved" | "written" | "archived";
 type TopicFormat = "story" | "lesson" | "rant" | "case" | "list";
 
+interface RawInputRow {
+  id: number;
+  type: string;
+  content: Record<string, string>;
+}
+
+interface TopicRow {
+  title: string;
+}
+
 // GET /api/topics?email=...&status=new
 export async function GET(request: NextRequest) {
   try {
@@ -108,7 +118,7 @@ export async function POST(request: NextRequest) {
     `;
 
     // Форматируем сырьё для промпта
-    const rawInputsFormatted = rawInputs.map((ri: { id: number; type: string; content: Record<string, string> }) => {
+    const rawInputsFormatted = (rawInputs as RawInputRow[]).map((ri) => {
       const c = ri.content;
       let text = `[ID: ${ri.id}] [${ri.type.toUpperCase()}]\n`;
 
@@ -170,7 +180,7 @@ ${rawInputsFormatted}
 
 ## Уже созданные темы (не повторять)
 
-${existingTopics.map((t: { title: string }) => `- ${t.title}`).join("\n") || "пока нет"}
+${(existingTopics as TopicRow[]).map((t) => `- ${t.title}`).join("\n") || "пока нет"}
 
 ## Задача
 
