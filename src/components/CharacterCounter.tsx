@@ -1,17 +1,18 @@
 'use client';
 
 import { Platform } from '@/types';
-import { parseThread, countTwitterChars, TWITTER_CHAR_LIMIT, LINKEDIN_CHAR_LIMIT, LINKEDIN_SEE_MORE_LIMIT } from '@/lib/constants';
+import { parseThread, countTwitterChars, TWITTER_CHAR_LIMIT, TWITTER_PREMIUM_CHAR_LIMIT, LINKEDIN_CHAR_LIMIT, LINKEDIN_SEE_MORE_LIMIT } from '@/lib/constants';
 
 interface CharacterCounterProps {
   text: string;
   platform?: Platform;
   maxLength?: number;
+  twitterPremium?: boolean;
 }
 
-export default function CharacterCounter({ text, platform = 'linkedin', maxLength }: CharacterCounterProps) {
+export default function CharacterCounter({ text, platform = 'linkedin', maxLength, twitterPremium }: CharacterCounterProps) {
   if (platform === 'twitter') {
-    return <TwitterCounter text={text} />;
+    return <TwitterCounter text={text} twitterPremium={twitterPremium} />;
   }
 
   return <LinkedInCounter text={text} maxLength={maxLength || LINKEDIN_CHAR_LIMIT} />;
@@ -83,9 +84,10 @@ function LinkedInCounter({ text, maxLength }: { text: string; maxLength: number 
   );
 }
 
-function TwitterCounter({ text }: { text: string }) {
+function TwitterCounter({ text, twitterPremium }: { text: string; twitterPremium?: boolean }) {
   const tweets = parseThread(text);
   const isThread = tweets.length > 1;
+  const charLimit = (twitterPremium && !isThread) ? TWITTER_PREMIUM_CHAR_LIMIT : TWITTER_CHAR_LIMIT;
 
   if (isThread) {
     return (
@@ -130,15 +132,15 @@ function TwitterCounter({ text }: { text: string }) {
     );
   }
 
-  // Single tweet
+  // Single tweet / long-form
   const charCount = countTwitterChars(text);
-  const percent = Math.min((charCount / TWITTER_CHAR_LIMIT) * 100, 100);
-  const isOver = charCount > TWITTER_CHAR_LIMIT;
+  const percent = Math.min((charCount / charLimit) * 100, 100);
+  const isOver = charCount > charLimit;
 
   const getColor = () => {
     if (isOver) return 'bg-red-500';
-    if (charCount > TWITTER_CHAR_LIMIT * 0.9) return 'bg-yellow-500';
-    if (charCount > TWITTER_CHAR_LIMIT * 0.7) return 'bg-blue-500';
+    if (charCount > charLimit * 0.9) return 'bg-yellow-500';
+    if (charCount > charLimit * 0.7) return 'bg-blue-500';
     return 'bg-green-500';
   };
 
@@ -154,18 +156,18 @@ function TwitterCounter({ text }: { text: string }) {
           />
         </div>
         <span className={`w-20 text-right ${isOver ? 'text-red-400' : 'text-gray-300'}`}>
-          {charCount}/{TWITTER_CHAR_LIMIT}
+          {charCount}/{charLimit}
         </span>
       </div>
 
       {/* Status */}
       <div className="text-[10px]">
         {isOver ? (
-          <span className="text-red-400">✗ Over Twitter limit by {charCount - TWITTER_CHAR_LIMIT} chars</span>
-        ) : charCount > TWITTER_CHAR_LIMIT * 0.9 ? (
-          <span className="text-yellow-400">⚠ Almost at limit ({TWITTER_CHAR_LIMIT - charCount} left)</span>
+          <span className="text-red-400">✗ Over Twitter limit by {charCount - charLimit} chars</span>
+        ) : charCount > charLimit * 0.9 ? (
+          <span className="text-yellow-400">⚠ Almost at limit ({charLimit - charCount} left)</span>
         ) : (
-          <span className="text-green-400">✓ {TWITTER_CHAR_LIMIT - charCount} characters remaining</span>
+          <span className="text-green-400">✓ {charLimit - charCount} characters remaining</span>
         )}
       </div>
     </div>

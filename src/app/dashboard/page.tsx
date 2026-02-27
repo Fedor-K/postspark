@@ -692,7 +692,7 @@ export default function Dashboard() {
                       />
 
                       {/* Character Counter */}
-                      <CharacterCounter text={getCurrentContent(index)} platform={platform} />
+                      <CharacterCounter text={getCurrentContent(index)} platform={platform} twitterPremium={data?.user.twitterPremium} />
 
                       {/* Tool Buttons */}
                       <div className="flex gap-2">
