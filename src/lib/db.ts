@@ -38,6 +38,13 @@ export async function initDB() {
     // Column might already exist
   }
 
+  // Add twitter_premium column for premium/long-form posts
+  try {
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_premium BOOLEAN DEFAULT FALSE`;
+  } catch {
+    // Column might already exist
+  }
+
   await sql`
     CREATE TABLE IF NOT EXISTS generations (
       id SERIAL PRIMARY KEY,

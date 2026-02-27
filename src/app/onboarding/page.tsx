@@ -69,6 +69,7 @@ export default function Onboarding() {
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [twitterHandle, setTwitterHandle] = useState("");
   const [twitterAccountsToCopy, setTwitterAccountsToCopy] = useState("");
+  const [twitterPremium, setTwitterPremium] = useState(false);
 
   const [emailFrequency, setEmailFrequency] = useState("twice_weekly");
   const [emailDays, setEmailDays] = useState<string[]>(["tuesday", "thursday"]);
@@ -147,6 +148,7 @@ export default function Onboarding() {
           linkedinUrl: linkedinUrl || null,
           twitterHandle: twitterHandle || null,
           twitterAccountsToCopy: twitterAccountsToCopy || null,
+          twitterPremium,
           emailFrequency,
           emailDays: emailDays.join(","),
           emailTime,
@@ -358,6 +360,20 @@ export default function Onboarding() {
               />
               <p className="text-gray-500 text-xs">We'll analyze their tweets and generate content in a similar style</p>
             </div>
+
+            {/* Twitter Premium toggle */}
+            <label className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/20 cursor-pointer hover:bg-white/10 transition-all">
+              <input
+                type="checkbox"
+                checked={twitterPremium}
+                onChange={(e) => setTwitterPremium(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-500 text-blue-500 focus:ring-blue-500 bg-white/10"
+              />
+              <div>
+                <span className="text-white text-sm font-medium">I have Twitter/X Premium</span>
+                <p className="text-gray-500 text-xs mt-0.5">Allows long-form posts (500-1500 chars) instead of 280-char limit</p>
+              </div>
+            </label>
 
             <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
               <p className="text-blue-300 text-sm">We'll generate 10 personalized post ideas. You can switch between LinkedIn and Twitter in the dashboard.</p>

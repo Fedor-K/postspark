@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
         timezone: user.timezone,
         twitterHandle: user.twitter_handle,
         twitterAccountsToCopy: user.twitter_accounts_to_copy,
+        twitterPremium: user.twitter_premium ?? false,
         createdAt: user.created_at,
       },
       savedPosts,

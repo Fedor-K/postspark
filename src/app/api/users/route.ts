@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { email, twitterAccountsToCopy, twitterHandle } = await request.json();
+    const { email, twitterAccountsToCopy, twitterHandle, twitterPremium } = await request.json();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -87,6 +87,7 @@ export async function PATCH(request: NextRequest) {
       SET
         twitter_accounts_to_copy = COALESCE(${twitterAccountsToCopy}, twitter_accounts_to_copy),
         twitter_handle = COALESCE(${twitterHandle}, twitter_handle),
+        twitter_premium = COALESCE(${twitterPremium}, twitter_premium),
         last_active = NOW()
       WHERE email = ${email}
       RETURNING *

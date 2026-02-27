@@ -47,6 +47,7 @@ interface User {
   linkedinHeadline: string | null;
   twitterHandle: string | null;
   twitterAccountsToCopy: string | null;
+  twitterPremium: boolean;
   emailFrequency: string | null;
   emailDays: string | null;
   emailTime: string | null;
@@ -129,6 +130,7 @@ export default function Dashboard() {
   // Settings modal
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTwitterAccounts, setSettingsTwitterAccounts] = useState("");
+  const [settingsTwitterPremium, setSettingsTwitterPremium] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [analyzingAccounts, setAnalyzingAccounts] = useState(false);
   const [analyzedAccounts, setAnalyzedAccounts] = useState<AnalyzedAccount[]>([]);
@@ -236,6 +238,7 @@ export default function Dashboard() {
           targetAudience: data.user.targetAudience,
           linkedinUrl: data.user.linkedinUrl,
           twitterHandle: data.user.twitterHandle,
+          twitterPremium: data.user.twitterPremium,
           emailFrequency: data.user.emailFrequency,
           emailDays: data.user.emailDays,
           emailTime: data.user.emailTime,
@@ -276,6 +279,7 @@ export default function Dashboard() {
           targetAudience: data.user.targetAudience,
           platform: platform,
           twitterAccountsToCopy: data.user.twitterAccountsToCopy,
+          twitterPremium: data.user.twitterPremium,
         }),
       });
       const result = await res.json();
@@ -442,6 +446,7 @@ export default function Dashboard() {
 
   const openSettings = () => {
     setSettingsTwitterAccounts(data?.user.twitterAccountsToCopy || "");
+    setSettingsTwitterPremium(data?.user.twitterPremium ?? false);
     setAnalyzedAccounts([]);
     setSelectedAccounts([]);
     setAnalyzeError("");
@@ -511,6 +516,7 @@ export default function Dashboard() {
         body: JSON.stringify({
           email: data.user.email,
           twitterAccountsToCopy: accountsToSave,
+          twitterPremium: settingsTwitterPremium,
         }),
       });
 
@@ -962,6 +968,20 @@ export default function Dashboard() {
                     <p className="text-blue-300 text-sm">💡 Enter Twitter handles and click "Analyze" to see their writing style. Then select which styles to copy.</p>
                   </div>
                 )}
+
+                {/* Twitter Premium toggle */}
+                <label className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={settingsTwitterPremium}
+                    onChange={(e) => setSettingsTwitterPremium(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-500 text-blue-500 focus:ring-blue-500 bg-white/10"
+                  />
+                  <div>
+                    <span className="text-white text-sm font-medium">Twitter/X Premium</span>
+                    <p className="text-gray-500 text-xs mt-0.5">Enable long-form posts (500-1500 chars) instead of 280-char limit</p>
+                  </div>
+                </label>
 
                 <button
                   onClick={handleResetOnboarding}

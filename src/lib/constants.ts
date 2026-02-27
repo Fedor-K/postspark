@@ -27,11 +27,13 @@ export const PLATFORM_CONFIGS: Record<Platform, PlatformConfig> = {
 };
 
 export const TWITTER_CHAR_LIMIT = 280;
+export const TWITTER_PREMIUM_CHAR_LIMIT = 4000;
 export const LINKEDIN_CHAR_LIMIT = 3000;
 export const LINKEDIN_SEE_MORE_LIMIT = 210;
 
 export const TWITTER_FORMATS = [
   { id: 'single-tweet', label: 'Single Tweet', maxTweets: 1 },
+  { id: 'long-form', label: 'Long-form Post', description: '500-1500 character deep post' },
   { id: 'thread-3', label: 'Short Thread (3)', maxTweets: 3 },
   { id: 'thread-5', label: 'Long Thread (5)', maxTweets: 5 },
 ];

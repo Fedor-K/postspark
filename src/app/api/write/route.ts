@@ -94,7 +94,8 @@ function createTwitterPrompt(
   userType: string,
   niche: string,
   targetAudience: string,
-  stylePrompt: string = ""
+  stylePrompt: string = "",
+  twitterPremium: boolean = false
 ): string {
   const toneInstructions: Record<string, string> = {
     punchy: `
@@ -123,10 +124,50 @@ TONE: Thread (Educational/Story)
 - Number each tweet: 1/, 2/, 3/, etc.`
   };
 
+  const isLongForm = format === 'long-form' || (twitterPremium && tone !== 'thread' && format !== 'thread-3' && format !== 'thread-5' && format !== 'single-tweet');
   const isThreadTone = tone === 'thread';
   const isThreadFormat = format === 'thread-3' || format === 'thread-5';
   const shouldBeThread = isThreadTone || isThreadFormat;
   const threadLength = format === 'thread-5' ? 5 : format === 'thread-3' ? 3 : (isThreadTone ? 3 : 1);
+
+  // Long-form post for premium users
+  if (isLongForm && twitterPremium) {
+    return `You are a viral Twitter/X ghostwriter for a ${userType} in ${niche}.
+
+## AUTHOR INFO:
+- Name: ${profile?.name || "Creator"}
+${profile?.twitterHandle ? `- Handle: @${profile.twitterHandle.replace('@', '')}` : ''}
+- Target Audience: ${targetAudience}
+${stylePrompt}
+
+## POST IDEA:
+- Hook: ${title}
+- Topic: ${description || title}
+- Format: Long-form post (500-1500 characters)
+
+${toneInstructions[tone] || toneInstructions.punchy}
+
+## RULES FOR LONG-FORM POST:
+- Target 500-1500 characters (this is a Twitter Premium long-form post)
+- Start with the hook to grab attention
+- Use line breaks between short paragraphs for readability
+- Structure: Hook → Context → Key insight/story → Takeaway → CTA
+- Short paragraphs (1-3 sentences each)
+- Use white space generously — line breaks for emphasis
+- End with a clear call-to-action or question
+- 0-3 emojis maximum
+- Hashtags: 0-2 only
+
+## IMPORTANT:
+- Write for ${targetAudience}
+- Be authentic and direct
+- No corporate speak
+- This is NOT a 280-char tweet — go deep, add nuance and structure
+- Make it feel like a mini-essay or in-depth take
+${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}
+
+Write the post now. Return ONLY the post text, nothing else:`;
+  }
 
   if (shouldBeThread) {
     return `You are a viral Twitter/X ghostwriter for a ${userType} in ${niche}.
@@ -202,7 +243,7 @@ Write the tweet now. Return ONLY the tweet text, nothing else:`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, description, format, profile, userType, niche, targetAudience, platform = 'linkedin', twitterAccountsToCopy } = await request.json();
+    const { title, description, format, profile, userType, niche, targetAudience, platform = 'linkedin', twitterAccountsToCopy, twitterPremium } = await request.json();
 
     if (!title) {
       return NextResponse.json({ error: "Missing title" }, { status: 400 });
@@ -250,7 +291,8 @@ export async function POST(request: NextRequest) {
             userType || "solopreneur",
             niche || "business",
             targetAudience || "",
-            stylePrompt
+            stylePrompt,
+            twitterPremium ?? false
           );
           return generateWithClaude(twitterPrompt, { temperature: 0.8 });
         } else {

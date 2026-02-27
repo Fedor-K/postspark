@@ -97,7 +97,8 @@ async function saveUserAndGeneration(
   ideas: Topic[],
   platform: Platform = 'linkedin',
   twitterHandle: string | null = null,
-  twitterAccountsToCopy: string | null = null
+  twitterAccountsToCopy: string | null = null,
+  twitterPremium: boolean = false
 ): Promise<{ user: Record<string, unknown>; isNew: boolean }> {
   let user = await sql`SELECT * FROM users WHERE email = ${email}`;
   let isNew = false;
@@ -105,8 +106,8 @@ async function saveUserAndGeneration(
   if (user.length === 0) {
     const refCode = generateRefCode();
     user = await sql`
-      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, twitter_handle, twitter_accounts_to_copy, ref_code, email_frequency, email_days, email_time, timezone)
-      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${twitterHandle}, ${twitterAccountsToCopy}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
+      INSERT INTO users (email, user_type, niche, target_audience, linkedin_url, linkedin_name, linkedin_headline, twitter_handle, twitter_accounts_to_copy, twitter_premium, ref_code, email_frequency, email_days, email_time, timezone)
+      VALUES (${email}, ${userType}, ${niche}, ${targetAudience}, ${linkedinUrl}, ${linkedinName}, ${linkedinHeadline}, ${twitterHandle}, ${twitterAccountsToCopy}, ${twitterPremium}, ${refCode}, ${emailFrequency}, ${emailDays}, ${emailTime}, ${timezone})
       RETURNING *
     `;
     isNew = true;
@@ -118,6 +119,7 @@ async function saveUserAndGeneration(
           linkedin_headline = ${linkedinHeadline},
           twitter_handle = COALESCE(${twitterHandle}, twitter_handle),
           twitter_accounts_to_copy = COALESCE(${twitterAccountsToCopy}, twitter_accounts_to_copy),
+          twitter_premium = ${twitterPremium},
           last_active = NOW(),
           email_frequency = ${emailFrequency}, email_days = ${emailDays}, email_time = ${emailTime}, timezone = ${timezone}
       WHERE email = ${email}
@@ -207,7 +209,7 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
 
 export async function POST(request: NextRequest) {
   try {
-    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone, platform = 'linkedin', twitterHandle, twitterAccountsToCopy } = await request.json();
+    const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone, platform = 'linkedin', twitterHandle, twitterAccountsToCopy, twitterPremium } = await request.json();
 
     if (!email || !userType || !niche || !targetAudience) {
       return NextResponse.json(
@@ -324,7 +326,9 @@ Generate 10 Twitter post ideas that will help this ${userTypeLabels[userType]} g
 REQUIREMENTS FOR EACH IDEA:
 1. Hook (title): Scroll-stopping first line (max 50 characters). Must grab attention.
 2. Description: Brief summary of what the post covers
-3. Format: MUST be one of: single-tweet, thread-3, thread-5
+3. Format: MUST be one of: ${twitterPremium ? 'single-tweet, long-form, thread-3, thread-5' : 'single-tweet, thread-3, thread-5'}
+
+${twitterPremium ? `FORMAT "long-form": A 500-1500 character post with structure, line breaks, and depth. Think mini-essay or in-depth take.` : ''}
 
 TWITTER HOOK FORMULAS THAT WORK:
 - Hot take: "[Controversial statement]"
@@ -336,7 +340,9 @@ TWITTER HOOK FORMULAS THAT WORK:
 
 IMPORTANT:
 - Make hooks PUNCHY and direct (Twitter rewards brevity)
-- 4-5 ideas should be single-tweet, 3-4 should be thread-3, 1-2 should be thread-5
+${twitterPremium
+  ? '- 6-7 ideas should be long-form, 2-3 should be single-tweet, 1 should be thread-5'
+  : '- 4-5 ideas should be single-tweet, 3-4 should be thread-3, 1-2 should be thread-5'}
 - Focus on topics that spark engagement (replies, retweets)
 - Use numbers and specific outcomes in hooks
 - Vary the formats across the 10 ideas
@@ -428,7 +434,8 @@ Return ONLY valid JSON in this exact format:
       topics,
       platform as Platform,
       twitterHandle || null,
-      accountsToCopySave
+      accountsToCopySave,
+      twitterPremium ?? false
     );
 
     if (isNew) {
