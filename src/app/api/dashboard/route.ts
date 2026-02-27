@@ -5,9 +5,6 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET(request: NextRequest) {
   try {
-    // One-time migration: add twitter_premium column (safe to run multiple times, remove after deployed)
-    try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_premium BOOLEAN DEFAULT FALSE`; } catch { /* already exists */ }
-
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
 

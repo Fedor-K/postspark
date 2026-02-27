@@ -209,9 +209,6 @@ function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
 
 export async function POST(request: NextRequest) {
   try {
-    // One-time migration: add twitter_premium column (safe to run multiple times, remove after deployed)
-    try { await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_premium BOOLEAN DEFAULT FALSE`; } catch { /* already exists */ }
-
     const { linkedinUrl, userType, niche, targetAudience, email, emailFrequency, emailDays, emailTime, timezone, platform = 'linkedin', twitterHandle, twitterAccountsToCopy, twitterPremium } = await request.json();
 
     if (!email || !userType || !niche || !targetAudience) {
