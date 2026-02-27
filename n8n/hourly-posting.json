@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://postspark.pro/api/cron/next-post?secret={{ $env.POSTSPARK_CRON_SECRET }}",
+        "url": "https://postspark.pro/api/cron/next-post?secret=postspark-weekly-2024-secret",
         "options": {}
       },
       "id": "http-get-post",
@@ -167,7 +167,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "https://postspark.pro/api/cron/next-post?secret={{ $env.POSTSPARK_CRON_SECRET }}",
+        "url": "https://postspark.pro/api/cron/next-post?secret=postspark-weekly-2024-secret",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ queueItemId: $('Get Next Post').item.json.queueItemId, status: 'posted' }) }}",

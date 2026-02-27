@@ -20,7 +20,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://postspark.pro/api/cron/generate-twitter?secret={{ $env.POSTSPARK_CRON_SECRET }}",
+        "url": "https://postspark.pro/api/cron/generate-twitter?secret=postspark-weekly-2024-secret",
         "options": {
           "timeout": 120000
         }

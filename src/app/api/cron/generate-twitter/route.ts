@@ -4,7 +4,7 @@ import { generateWithClaude } from "@/lib/anthropic";
 import { createTwitterPrompt, createIdeaPrompt, getDayTheme, getContentTypes } from "@/lib/twitter-prompts";
 
 const sql = neon(process.env.DATABASE_URL!);
-const CRON_SECRET = process.env.CRON_SECRET || "postspark-weekly-cron-2024";
+const CRON_SECRET = process.env.CRON_SECRET || "postspark-weekly-2024-secret";
 
 interface AutopilotUser {
   id: number;

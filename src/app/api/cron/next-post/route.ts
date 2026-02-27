@@ -3,7 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { parseThread } from "@/lib/constants";
 
 const sql = neon(process.env.DATABASE_URL!);
-const CRON_SECRET = process.env.CRON_SECRET || "postspark-weekly-cron-2024";
+const CRON_SECRET = process.env.CRON_SECRET || "postspark-weekly-2024-secret";
 
 // GET — return the oldest queued post
 export async function GET(request: NextRequest) {
