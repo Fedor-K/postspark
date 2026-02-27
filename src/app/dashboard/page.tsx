@@ -34,6 +34,7 @@ interface Generation {
   createdAt: string;
   ideasCount: number;
   ideas: Idea[];
+  platform?: string;
 }
 
 interface User {
@@ -154,6 +155,16 @@ export default function Dashboard() {
     setGeneratedPosts({});
     setSelectedTone({});
     setEditedContent({});
+    // Load ideas for the new platform
+    if (data?.generations && data.generations.length > 0) {
+      const platformGen = data.generations.find((g: Generation) => g.platform === newPlatform)
+        || data.generations[0];
+      if (platformGen.ideas && platformGen.ideas.length > 0) {
+        setCurrentIdeas(platformGen.ideas);
+      } else {
+        setCurrentIdeas([]);
+      }
+    }
   };
 
   const checkSession = async () => {
@@ -181,11 +192,13 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(result.error);
       setData(result);
 
-      // Load latest generation ideas
+      // Load latest generation ideas for current platform
       if (result.generations && result.generations.length > 0) {
-        const latest = result.generations[0];
-        if (latest.ideas && latest.ideas.length > 0) {
-          setCurrentIdeas(latest.ideas);
+        const savedPlatform = localStorage.getItem(STORAGE_KEYS.PLATFORM) as Platform || 'linkedin';
+        const platformGen = result.generations.find((g: Generation) => g.platform === savedPlatform)
+          || result.generations[0];
+        if (platformGen.ideas && platformGen.ideas.length > 0) {
+          setCurrentIdeas(platformGen.ideas);
         }
       }
     } catch (err: unknown) {
