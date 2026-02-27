@@ -5,6 +5,8 @@ import { neon } from "@neondatabase/serverless";
 import { sendEmail, generateWelcomeEmail } from "@/lib/email";
 import { Platform } from "@/types";
 import { scrapeMultipleAccounts, generateStylePrompt, TwitterAccountStyle } from "@/lib/twitter-scraper";
+import { generateWithClaude } from "@/lib/anthropic";
+import { discoverTwitterAccounts } from "@/lib/twitter-discovery";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -235,25 +237,70 @@ export async function POST(request: NextRequest) {
     // Scrape Twitter accounts to copy style from
     let stylePrompt = "";
     let scrapedAccounts: TwitterAccountStyle[] = [];
+    let discoveredHandlesForSave: string[] | null = null;
 
-    if (platform === 'twitter' && twitterAccountsToCopy) {
-      const handles = twitterAccountsToCopy
-        .split(/[,\s]+/)
-        .map((h: string) => h.trim().replace('@', ''))
-        .filter(Boolean)
-        .slice(0, 3);
+    if (platform === 'twitter') {
+      if (twitterAccountsToCopy) {
+        // User provided accounts — scrape them
+        const handles = twitterAccountsToCopy
+          .split(/[,\s]+/)
+          .map((h: string) => h.trim().replace('@', ''))
+          .filter(Boolean)
+          .slice(0, 3);
 
-      if (handles.length > 0) {
-        console.log(`Scraping Twitter accounts for style: ${handles.join(', ')}`);
+        if (handles.length > 0) {
+          console.log(`Scraping user-provided Twitter accounts: ${handles.join(', ')}`);
+          try {
+            scrapedAccounts = await scrapeMultipleAccounts(handles);
+            if (scrapedAccounts.length > 0) {
+              stylePrompt = generateStylePrompt(scrapedAccounts);
+              console.log(`Style analysis complete for ${scrapedAccounts.length} accounts`);
+            }
+          } catch (e) {
+            console.log("Twitter scraping failed, continuing without style analysis", e);
+          }
+        }
+      } else {
+        // No accounts provided — auto-discover
+        console.log("No twitter_accounts_to_copy — running auto-discovery");
         try {
-          scrapedAccounts = await scrapeMultipleAccounts(handles);
-          if (scrapedAccounts.length > 0) {
-            stylePrompt = generateStylePrompt(scrapedAccounts);
-            console.log(`Style analysis complete for ${scrapedAccounts.length} accounts`);
+          const discovery = await discoverTwitterAccounts(niche, targetAudience, userType);
+          scrapedAccounts = discovery.accounts;
+          stylePrompt = discovery.stylePrompt;
+          if (discovery.discoveredHandles.length > 0) {
+            discoveredHandlesForSave = discovery.discoveredHandles;
+            console.log(`Auto-discovered accounts: ${discovery.discoveredHandles.join(', ')}`);
           }
         } catch (e) {
-          console.log("Twitter scraping failed, continuing without style analysis", e);
+          console.log("Auto-discovery failed, continuing without style analysis", e);
         }
+      }
+    }
+
+    // Fetch previous Twitter generations for diversity
+    let diversityClause = "";
+    if (platform === 'twitter') {
+      try {
+        const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
+        if (existingUser.length > 0) {
+          const prevGens = await sql`
+            SELECT ideas FROM generations
+            WHERE user_id = ${existingUser[0].id} AND platform = 'twitter'
+            ORDER BY created_at DESC LIMIT 3
+          `;
+          if (prevGens.length > 0) {
+            const prevTitles: string[] = prevGens
+              .flatMap(g => {
+                const ideas = typeof g.ideas === 'string' ? JSON.parse(g.ideas) : g.ideas;
+                return Array.isArray(ideas) ? ideas.map((i: { title?: string }) => i.title).filter((t): t is string => typeof t === 'string') : [];
+              });
+            if (prevTitles.length > 0) {
+              diversityClause = `\nDIVERSITY: Do NOT reuse these previously generated topics:\n${prevTitles.map(t => `- ${t}`).join('\n')}\nGenerate completely fresh angles and topics.\n`;
+            }
+          }
+        }
+      } catch (e) {
+        console.log("Failed to fetch previous generations for diversity, continuing", e);
       }
     }
 
@@ -294,7 +341,7 @@ IMPORTANT:
 - Use numbers and specific outcomes in hooks
 - Vary the formats across the 10 ideas
 ${scrapedAccounts.length > 0 ? '- CRITICAL: Match the style and tone of the accounts mentioned above' : ''}
-
+${diversityClause}
 Return ONLY valid JSON in this exact format:
 {"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"single-tweet"}]}`;
     } else {
@@ -336,14 +383,24 @@ Return ONLY valid JSON in this exact format:
 {"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"tips"}]}`;
     }
 
-    console.log("Calling Z.ai API...");
-    const completion = await openai.chat.completions.create({
-      model: "glm-4.5-air",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-    });
+    let content: string;
 
-    const content = completion.choices[0]?.message?.content;
+    if (platform === 'twitter') {
+      console.log("Calling Claude API for Twitter...");
+      content = await generateWithClaude(prompt, {
+        temperature: 0.8,
+        maxTokens: 4096,
+      });
+    } else {
+      console.log("Calling Z.ai API for LinkedIn...");
+      const completion = await openai.chat.completions.create({
+        model: "glm-4.5-air",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+      });
+      content = completion.choices[0]?.message?.content || "";
+    }
+
     console.log("AI response length:", content?.length);
 
     if (!content) {
@@ -352,6 +409,9 @@ Return ONLY valid JSON in this exact format:
 
     const aiResponse = cleanAndParseJSON(content);
     const topics = aiResponse.topics;
+
+    // If we auto-discovered handles, pass them as twitterAccountsToCopy
+    const accountsToCopySave = twitterAccountsToCopy || (discoveredHandlesForSave ? discoveredHandlesForSave.join(', ') : null);
 
     const { user, isNew } = await saveUserAndGeneration(
       email,
@@ -368,7 +428,7 @@ Return ONLY valid JSON in this exact format:
       topics,
       platform as Platform,
       twitterHandle || null,
-      twitterAccountsToCopy || null
+      accountsToCopySave
     );
 
     if (isNew) {

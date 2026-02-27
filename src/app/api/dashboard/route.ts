@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Get generations history with ideas
     const generations = await sql`
-      SELECT id, created_at, ideas 
+      SELECT id, created_at, ideas, platform
       FROM generations 
       WHERE user_id = ${user.id} 
       ORDER BY created_at DESC
@@ -59,12 +59,15 @@ export async function GET(request: NextRequest) {
         emailDays: user.email_days,
         emailTime: user.email_time,
         timezone: user.timezone,
+        twitterHandle: user.twitter_handle,
+        twitterAccountsToCopy: user.twitter_accounts_to_copy,
         createdAt: user.created_at,
       },
       savedPosts,
       generations: generations.map(g => ({
         id: g.id,
         createdAt: g.created_at,
+        platform: g.platform || 'linkedin',
         ideasCount: Array.isArray(g.ideas) ? g.ideas.length : 0,
         ideas: g.ideas || [],
       })),

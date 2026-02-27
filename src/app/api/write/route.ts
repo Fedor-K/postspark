@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { Platform } from "@/types";
 import { THREAD_SEPARATOR } from "@/lib/constants";
 import { scrapeMultipleAccounts, generateStylePrompt } from "@/lib/twitter-scraper";
+import { generateWithClaude } from "@/lib/anthropic";
 
 const openai = new OpenAI({
   apiKey: process.env.ZAI_API_KEY,
@@ -236,29 +237,25 @@ export async function POST(request: NextRequest) {
       ? ["punchy", "casual", "thread"]
       : ["professional", "casual", "storytelling"];
 
-    const completions = await Promise.all(
-      tones.map(tone => {
+    const results = await Promise.all(
+      tones.map(async (tone): Promise<string> => {
         if (platformTyped === 'twitter') {
-          return openai.chat.completions.create({
-            model: "glm-4.5-air",
-            messages: [{
-              role: "user",
-              content: createTwitterPrompt(
-                title,
-                description,
-                format,
-                tone,
-                profile,
-                userType || "solopreneur",
-                niche || "business",
-                targetAudience || "",
-                stylePrompt
-              )
-            }],
-            temperature: 0.8,
-          });
+          // Use Claude for Twitter
+          const twitterPrompt = createTwitterPrompt(
+            title,
+            description,
+            format,
+            tone,
+            profile,
+            userType || "solopreneur",
+            niche || "business",
+            targetAudience || "",
+            stylePrompt
+          );
+          return generateWithClaude(twitterPrompt, { temperature: 0.8 });
         } else {
-          return openai.chat.completions.create({
+          // Use Z.ai for LinkedIn
+          const completion = await openai.chat.completions.create({
             model: "glm-4.5-air",
             messages: [{
               role: "user",
@@ -275,13 +272,14 @@ export async function POST(request: NextRequest) {
             }],
             temperature: 0.8,
           });
+          return completion.choices[0]?.message?.content?.trim() || "Failed to generate this version";
         }
       })
     );
 
     const posts: Record<string, string> = {};
     tones.forEach((tone, index) => {
-      let content = completions[index].choices[0]?.message?.content?.trim() || "Failed to generate this version";
+      let content = results[index]?.trim() || "Failed to generate this version";
 
       // For thread tone, ensure proper formatting
       if (platformTyped === 'twitter' && tone === 'thread') {
