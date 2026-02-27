@@ -1,0 +1,298 @@
+{
+  "name": "PostSpark — Hourly Twitter Posting",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            },
+            {
+              "triggerAtHour": 10
+            },
+            {
+              "triggerAtHour": 12
+            },
+            {
+              "triggerAtHour": 14
+            },
+            {
+              "triggerAtHour": 16
+            },
+            {
+              "triggerAtHour": 18
+            },
+            {
+              "triggerAtHour": 20
+            },
+            {
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 2h (8AM-10PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://postspark.pro/api/cron/next-post?secret={{ $env.POSTSPARK_CRON_SECRET }}",
+        "options": {}
+      },
+      "id": "http-get-post",
+      "name": "Get Next Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-post",
+              "leftValue": "={{ $json.hasPost }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-has-post",
+      "name": "Has Post?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-thread",
+              "leftValue": "={{ $json.isThread }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-thread",
+      "name": "Is Thread?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Single tweet — just post the content\nconst item = $input.first().json;\nreturn [{ json: { text: item.postContent, queueItemId: item.queueItemId } }];"
+      },
+      "id": "prep-single",
+      "name": "Prep Single Tweet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Thread — split into parts and prepare for sequential posting\nconst item = $input.first().json;\nconst parts = item.threadParts;\nconst result = parts.map((text, index) => ({\n  json: {\n    text,\n    index,\n    isFirst: index === 0,\n    queueItemId: item.queueItemId,\n    totalParts: parts.length\n  }\n}));\nreturn result;"
+      },
+      "id": "prep-thread",
+      "name": "Split Thread Parts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -100]
+    },
+    {
+      "parameters": {
+        "resource": "tweet",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "twitter-single",
+      "name": "Post Single Tweet",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [1100, 100],
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Twitter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "tweet",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "inReplyToStatusId": "={{ $json.isFirst ? '' : $('Post Thread Tweet').item.json.data.id }}"
+        }
+      },
+      "id": "twitter-thread",
+      "name": "Post Thread Tweet",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [1100, -100],
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Twitter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://postspark.pro/api/cron/next-post?secret={{ $env.POSTSPARK_CRON_SECRET }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queueItemId: $('Get Next Post').item.json.queueItemId, status: 'posted' }) }}",
+        "options": {}
+      },
+      "id": "http-mark-posted",
+      "name": "Mark as Posted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {},
+      "id": "no-op",
+      "name": "No Post Available",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 200]
+    }
+  ],
+  "connections": {
+    "Every 2h (8AM-10PM)": {
+      "main": [
+        [
+          {
+            "node": "Get Next Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Post": {
+      "main": [
+        [
+          {
+            "node": "Has Post?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Post?": {
+      "main": [
+        [
+          {
+            "node": "Is Thread?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Post Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Thread?": {
+      "main": [
+        [
+          {
+            "node": "Split Thread Parts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prep Single Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Thread Parts": {
+      "main": [
+        [
+          {
+            "node": "Post Thread Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Single Tweet": {
+      "main": [
+        [
+          {
+            "node": "Post Single Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Single Tweet": {
+      "main": [
+        [
+          {
+            "node": "Mark as Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Thread Tweet": {
+      "main": [
+        [
+          {
+            "node": "Mark as Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

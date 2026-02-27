@@ -101,4 +101,36 @@ export async function initDB() {
   await sql`
     CREATE INDEX IF NOT EXISTS idx_saved_posts_user ON saved_posts(user_id)
   `;
+
+  // Add twitter_autopilot column for auto-posting feature
+  try {
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_autopilot BOOLEAN DEFAULT FALSE`;
+  } catch {
+    // Column might already exist
+  }
+
+  // Create twitter_post_queue table for autopilot scheduling
+  await sql`
+    CREATE TABLE IF NOT EXISTS twitter_post_queue (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      idea_title TEXT,
+      post_content TEXT NOT NULL,
+      content_type VARCHAR(30) NOT NULL,
+      tone VARCHAR(50),
+      day_theme VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'queued',
+      posted_at TIMESTAMP,
+      error_message TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_twitter_queue_status ON twitter_post_queue(status, created_at)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_twitter_queue_user ON twitter_post_queue(user_id)
+  `;
 }

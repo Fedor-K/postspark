@@ -4,17 +4,12 @@ import { Platform } from "@/types";
 import { THREAD_SEPARATOR } from "@/lib/constants";
 import { scrapeMultipleAccounts, generateStylePrompt } from "@/lib/twitter-scraper";
 import { generateWithClaude } from "@/lib/anthropic";
+import { createTwitterPrompt, ProfileInfo } from "@/lib/twitter-prompts";
 
 const openai = new OpenAI({
   apiKey: process.env.ZAI_API_KEY,
   baseURL: "https://api.z.ai/api/paas/v4"
 });
-
-interface ProfileInfo {
-  name?: string;
-  headline?: string;
-  twitterHandle?: string;
-}
 
 function createLinkedInPrompt(
   title: string,
@@ -83,162 +78,6 @@ ${toneInstructions[tone] || toneInstructions.professional}
 - Make it feel authentic, not AI-generated
 
 Write the post now. Return ONLY the post text, nothing else:`;
-}
-
-function createTwitterPrompt(
-  title: string,
-  description: string,
-  format: string,
-  tone: string,
-  profile: ProfileInfo | null,
-  userType: string,
-  niche: string,
-  targetAudience: string,
-  stylePrompt: string = "",
-  twitterPremium: boolean = false
-): string {
-  const toneInstructions: Record<string, string> = {
-    punchy: `
-TONE: Punchy & Direct
-- One key idea, maximum impact
-- Short, powerful sentences
-- No fluff or filler words
-- Use line breaks for emphasis
-- Strong opinion or statement
-- End with a provocative statement or clear CTA`,
-    casual: `
-TONE: Casual & Conversational
-- Write like texting a friend
-- Use "you" and "I" freely
-- Light humor or wit welcome
-- Contractions everywhere
-- Relatable observations
-- End with a simple question or thought`,
-    thread: `
-TONE: Thread (Educational/Story)
-- This is a THREAD of 3-5 connected tweets
-- First tweet: Hook that creates curiosity
-- Middle tweets: Value, insights, or story progression
-- Last tweet: Key takeaway + soft CTA
-- Each tweet should stand alone but connect to the whole
-- Number each tweet: 1/, 2/, 3/, etc.`
-  };
-
-  const isLongForm = format === 'long-form' || (twitterPremium && tone !== 'thread' && format !== 'thread-3' && format !== 'thread-5' && format !== 'single-tweet');
-  const isThreadTone = tone === 'thread';
-  const isThreadFormat = format === 'thread-3' || format === 'thread-5';
-  const shouldBeThread = isThreadTone || isThreadFormat;
-  const threadLength = format === 'thread-5' ? 5 : format === 'thread-3' ? 3 : (isThreadTone ? 3 : 1);
-
-  // Long-form post for premium users
-  if (isLongForm && twitterPremium) {
-    return `You are a viral Twitter/X ghostwriter for a ${userType} in ${niche}.
-
-## AUTHOR INFO:
-- Name: ${profile?.name || "Creator"}
-${profile?.twitterHandle ? `- Handle: @${profile.twitterHandle.replace('@', '')}` : ''}
-- Target Audience: ${targetAudience}
-${stylePrompt}
-
-## POST IDEA:
-- Hook: ${title}
-- Topic: ${description || title}
-- Format: Long-form post (500-1500 characters)
-
-${toneInstructions[tone] || toneInstructions.punchy}
-
-## RULES FOR LONG-FORM POST:
-- Target 500-1500 characters (this is a Twitter Premium long-form post)
-- Start with the hook to grab attention
-- Use line breaks between short paragraphs for readability
-- Structure: Hook → Context → Key insight/story → Takeaway → CTA
-- Short paragraphs (1-3 sentences each)
-- Use white space generously — line breaks for emphasis
-- End with a clear call-to-action or question
-- 0-3 emojis maximum
-- Hashtags: 0-2 only
-
-## IMPORTANT:
-- Write for ${targetAudience}
-- Be authentic and direct
-- No corporate speak
-- This is NOT a 280-char tweet — go deep, add nuance and structure
-- Make it feel like a mini-essay or in-depth take
-${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}
-
-Write the post now. Return ONLY the post text, nothing else:`;
-  }
-
-  if (shouldBeThread) {
-    return `You are a viral Twitter/X ghostwriter for a ${userType} in ${niche}.
-
-## AUTHOR INFO:
-- Name: ${profile?.name || "Creator"}
-${profile?.twitterHandle ? `- Handle: @${profile.twitterHandle.replace('@', '')}` : ''}
-- Target Audience: ${targetAudience}
-${stylePrompt}
-
-## POST IDEA:
-- Hook: ${title}
-- Topic: ${description || title}
-- Format: Thread (${threadLength} tweets)
-
-${toneInstructions.thread}
-
-## THREAD STRUCTURE (${threadLength} tweets):
-1/ Hook tweet - grab attention, create curiosity (max 280 chars)
-${threadLength >= 2 ? '2/ Expand on the main point or continue the story' : ''}
-${threadLength >= 3 ? '3/ Provide value, insight, or plot development' : ''}
-${threadLength >= 4 ? '4/ Additional insight or turning point' : ''}
-${threadLength >= 5 ? '5/ Conclusion with key takeaway and soft CTA' : ''}
-
-## RULES:
-- EACH tweet must be under 280 characters
-- Start each tweet with the number (1/, 2/, etc.)
-- Separate tweets with "---" on its own line
-- Make each tweet valuable standalone
-- Build momentum through the thread
-- Last tweet should have a takeaway or call to engage
-
-## IMPORTANT:
-- Write for ${targetAudience}
-- Be authentic, not corporate
-- Use simple, punchy language
-- Emojis sparingly (1-2 max per tweet)
-
-Write the thread now. Return ONLY the tweets separated by ---, nothing else:`;
-  }
-
-  return `You are a viral Twitter/X ghostwriter for a ${userType} in ${niche}.
-
-## AUTHOR INFO:
-- Name: ${profile?.name || "Creator"}
-${profile?.twitterHandle ? `- Handle: @${profile.twitterHandle.replace('@', '')}` : ''}
-- Target Audience: ${targetAudience}
-${stylePrompt}
-
-## POST IDEA:
-- Hook: ${title}
-- Topic: ${description || title}
-
-${toneInstructions[tone] || toneInstructions.punchy}
-
-## RULES FOR SINGLE TWEET:
-- MUST be under 280 characters total
-- One clear idea or message
-- Punchy, direct language
-- Line breaks for emphasis if needed
-- 0-2 emojis maximum
-- Hashtags: 0-1 only (or none)
-
-## IMPORTANT:
-- Write for ${targetAudience}
-- Be authentic and direct
-- No corporate speak
-- Make every word count
-${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}
-
-Write the tweet now. Return ONLY the tweet text, nothing else:`;
 }
 
 export async function POST(request: NextRequest) {
