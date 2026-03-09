@@ -53,3 +53,8 @@ pnpm start
 ## Live
 
 https://postspark.pro
+
+
+---
+
+_Last updated: March 9, 2026_
