@@ -57,4 +57,4 @@ https://postspark.pro
 
 ---
 
-_Last updated: March 9, 2026_
+_Last updated: March 9, 2026 — tested via Claude Code_
