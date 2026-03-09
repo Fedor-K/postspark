@@ -161,8 +161,25 @@ export default function Dashboard() {
         || data.generations[0];
       if (platformGen.ideas && platformGen.ideas.length > 0) {
         setCurrentIdeas(platformGen.ideas);
+
+        // Mark ideas that already have published posts
+        if (data.savedPosts) {
+          const publishedTitles = new Set(
+            data.savedPosts
+              .filter((p: SavedPost) => p.published_at)
+              .map((p: SavedPost) => p.idea_title)
+          );
+          const published: {[key: number]: boolean} = {};
+          platformGen.ideas.forEach((idea: Idea, i: number) => {
+            if (publishedTitles.has(idea.title)) {
+              published[i] = true;
+            }
+          });
+          setPublishedPosts(published);
+        }
       } else {
         setCurrentIdeas([]);
+        setPublishedPosts({});
       }
     }
   };
@@ -199,6 +216,22 @@ export default function Dashboard() {
           || result.generations[0];
         if (platformGen.ideas && platformGen.ideas.length > 0) {
           setCurrentIdeas(platformGen.ideas);
+
+          // Mark ideas that already have published posts
+          if (result.savedPosts) {
+            const publishedTitles = new Set(
+              result.savedPosts
+                .filter((p: SavedPost) => p.published_at)
+                .map((p: SavedPost) => p.idea_title)
+            );
+            const published: {[key: number]: boolean} = {};
+            platformGen.ideas.forEach((idea: Idea, i: number) => {
+              if (publishedTitles.has(idea.title)) {
+                published[i] = true;
+              }
+            });
+            setPublishedPosts(published);
+          }
         }
       }
     } catch (err: unknown) {
