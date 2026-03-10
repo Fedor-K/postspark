@@ -14,7 +14,8 @@ export function createTwitterPrompt(
   niche: string,
   targetAudience: string,
   stylePrompt: string = "",
-  twitterPremium: boolean = false
+  twitterPremium: boolean = false,
+  performanceContext: string = ""
 ): string {
   const toneInstructions: Record<string, string> = {
     punchy: `
@@ -83,7 +84,7 @@ ${toneInstructions[tone] || toneInstructions.punchy}
 - No corporate speak
 - This is NOT a 280-char tweet — go deep, add nuance and structure
 - Make it feel like a mini-essay or in-depth take
-${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}
+${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}${performanceContext}
 
 Write the post now. Return ONLY the post text, nothing else:`;
   }
@@ -123,7 +124,7 @@ ${threadLength >= 5 ? '5/ Conclusion with key takeaway and soft CTA' : ''}
 - Write for ${targetAudience}
 - Be authentic, not corporate
 - Use simple, punchy language
-- Emojis sparingly (1-2 max per tweet)
+- Emojis sparingly (1-2 max per tweet)${performanceContext}
 
 Write the thread now. Return ONLY the tweets separated by ---, nothing else:`;
   }
@@ -155,7 +156,7 @@ ${toneInstructions[tone] || toneInstructions.punchy}
 - Be authentic and direct
 - No corporate speak
 - Make every word count
-${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}
+${stylePrompt ? '- CRITICAL: Match the style of the accounts mentioned above' : ''}${performanceContext}
 
 Write the tweet now. Return ONLY the tweet text, nothing else:`;
 }

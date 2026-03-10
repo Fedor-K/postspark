@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { neon } from "@neondatabase/serverless";
 import { Platform } from "@/types";
 import { THREAD_SEPARATOR } from "@/lib/constants";
 import { scrapeMultipleAccounts, generateStylePrompt } from "@/lib/twitter-scraper";
 import { generateWithClaude } from "@/lib/anthropic";
 import { createTwitterPrompt, ProfileInfo } from "@/lib/twitter-prompts";
+
+const sql = neon(process.env.DATABASE_URL!);
 
 const openai = new OpenAI({
   apiKey: process.env.ZAI_API_KEY,
@@ -19,7 +22,8 @@ function createLinkedInPrompt(
   profile: ProfileInfo | null,
   userType: string,
   niche: string,
-  targetAudience: string
+  targetAudience: string,
+  performanceContext: string = ""
 ): string {
   const toneInstructions: Record<string, string> = {
     professional: `
@@ -75,20 +79,42 @@ ${toneInstructions[tone] || toneInstructions.professional}
 - Write for the TARGET AUDIENCE: ${targetAudience}
 - Subtly position the author as an expert who can help
 - Don't be salesy - provide genuine value
-- Make it feel authentic, not AI-generated
+- Make it feel authentic, not AI-generated${performanceContext}
 
 Write the post now. Return ONLY the post text, nothing else:`;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, description, format, profile, userType, niche, targetAudience, platform = 'linkedin', twitterAccountsToCopy, twitterPremium } = await request.json();
+    const { title, description, format, profile, email, userType, niche, targetAudience, platform = 'linkedin', twitterAccountsToCopy, twitterPremium } = await request.json();
 
     if (!title) {
       return NextResponse.json({ error: "Missing title" }, { status: 400 });
     }
 
     const platformTyped = platform as Platform;
+
+    // Fetch top performing posts for context
+    let performanceContext = "";
+    if (email) {
+      try {
+        const user = await sql`SELECT id FROM users WHERE email = ${email}`;
+        if (user.length > 0) {
+          const topPosts = await sql`
+            SELECT idea_title, post_content, views, likes, comments, tone
+            FROM saved_posts
+            WHERE user_id = ${user[0].id} AND published_at IS NOT NULL AND views > 0
+            ORDER BY views DESC
+            LIMIT 3
+          `;
+          if (topPosts.length > 0) {
+            performanceContext = `\n\nTOP PERFORMING POSTS BY THIS AUTHOR (write in a similar style):\n${topPosts.map((p, i) => `${i + 1}. "${p.idea_title}" (${p.views} views, ${p.likes} likes) — Tone: ${p.tone}\nContent preview: ${p.post_content.substring(0, 200)}...`).join('\n\n')}\n`;
+          }
+        }
+      } catch (e) {
+        console.log("Failed to fetch performance data for write", e);
+      }
+    }
 
     // Scrape Twitter accounts to copy style from (if provided)
     let stylePrompt = "";
@@ -131,7 +157,8 @@ export async function POST(request: NextRequest) {
             niche || "business",
             targetAudience || "",
             stylePrompt,
-            twitterPremium ?? false
+            twitterPremium ?? false,
+            performanceContext
           );
           return generateWithClaude(twitterPrompt, { temperature: 0.8 });
         } else {
@@ -148,7 +175,8 @@ export async function POST(request: NextRequest) {
                 profile,
                 userType || "solopreneur",
                 niche || "business",
-                targetAudience || ""
+                targetAudience || "",
+                performanceContext
               )
             }],
             temperature: 0.8,

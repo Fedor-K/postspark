@@ -38,9 +38,18 @@ export async function GET(request: NextRequest) {
       LIMIT 10
     `;
 
+    // Get top performing posts (for AI prompt context)
+    const topPosts = await sql`
+      SELECT idea_title, post_content, tone, platform, views, likes, comments
+      FROM saved_posts
+      WHERE user_id = ${user.id} AND published_at IS NOT NULL AND views > 0
+      ORDER BY views DESC
+      LIMIT 5
+    `;
+
     // Get stats
     const stats = await sql`
-      SELECT 
+      SELECT
         (SELECT COUNT(*) FROM saved_posts WHERE user_id = ${user.id}) as saved_count,
         (SELECT COUNT(*) FROM generations WHERE user_id = ${user.id}) as generation_count
     `;
@@ -71,6 +80,15 @@ export async function GET(request: NextRequest) {
         platform: g.platform || 'linkedin',
         ideasCount: Array.isArray(g.ideas) ? g.ideas.length : 0,
         ideas: g.ideas || [],
+      })),
+      topPosts: topPosts.map(p => ({
+        ideaTitle: p.idea_title,
+        postContent: p.post_content,
+        tone: p.tone,
+        platform: p.platform,
+        views: p.views,
+        likes: p.likes,
+        comments: p.comments,
       })),
       stats: {
         savedCount: Number(stats[0]?.saved_count || 0),

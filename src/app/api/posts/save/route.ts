@@ -63,17 +63,38 @@ export async function PUT(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { id } = await request.json();
+    const { id, views, likes, comments } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
     }
 
-    // Ensure published_at column exists (will fail silently if exists)
+    // Ensure columns exist
     try {
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS comments INTEGER DEFAULT 0`;
     } catch {
-      // Column might already exist
+      // Columns might already exist
+    }
+
+    // If metrics are provided, update them; otherwise mark as published
+    if (views !== undefined || likes !== undefined || comments !== undefined) {
+      const updatedPost = await sql`
+        UPDATE saved_posts
+        SET views = COALESCE(${views ?? null}, views),
+            likes = COALESCE(${likes ?? null}, likes),
+            comments = COALESCE(${comments ?? null}, comments)
+        WHERE id = ${id}
+        RETURNING *
+      `;
+
+      if (updatedPost.length === 0) {
+        return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ post: updatedPost[0] });
     }
 
     const updatedPost = await sql`

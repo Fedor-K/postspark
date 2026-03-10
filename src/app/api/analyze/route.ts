@@ -306,6 +306,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch top performing posts for adaptive generation
+    let performanceContext = "";
+    try {
+      const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
+      if (existingUser.length > 0) {
+        const topPosts = await sql`
+          SELECT idea_title, views, likes, comments, tone, platform as post_platform
+          FROM saved_posts
+          WHERE user_id = ${existingUser[0].id} AND published_at IS NOT NULL AND views > 0
+          ORDER BY views DESC
+          LIMIT 5
+        `;
+        if (topPosts.length > 0) {
+          performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts. Generate ideas similar in style, angle, and format to the top performers:\n${topPosts.map((p, i) => `${i + 1}. "${p.idea_title}" — ${p.views} views, ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform})`).join('\n')}\nAnalyze what made these posts successful and apply those patterns to the new ideas.\n`;
+        }
+      }
+    } catch (e) {
+      console.log("Failed to fetch performance data, continuing", e);
+    }
+
     let prompt: string;
 
     if (platform === 'twitter') {
@@ -347,7 +367,7 @@ ${twitterPremium
 - Use numbers and specific outcomes in hooks
 - Vary the formats across the 10 ideas
 ${scrapedAccounts.length > 0 ? '- CRITICAL: Match the style and tone of the accounts mentioned above' : ''}
-${diversityClause}
+${diversityClause}${performanceContext}
 Return ONLY valid JSON in this exact format:
 {"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"single-tweet"}]}`;
     } else {
@@ -384,7 +404,7 @@ IMPORTANT:
 - Focus on topics that attract CLIENTS
 - Each idea should showcase expertise without being salesy
 - Vary the formats across the 10 ideas
-
+${performanceContext}
 Return ONLY valid JSON in this exact format:
 {"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"tips"}]}`;
     }

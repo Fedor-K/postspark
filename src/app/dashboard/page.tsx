@@ -20,6 +20,9 @@ interface SavedPost {
   platform: Platform;
   created_at: string;
   published_at: string | null;
+  views: number;
+  likes: number;
+  comments: number;
 }
 
 interface Idea {
@@ -127,6 +130,13 @@ export default function Dashboard() {
   const [editTone, setEditTone] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Metrics editing
+  const [editingMetrics, setEditingMetrics] = useState<number | null>(null);
+  const [metricsViews, setMetricsViews] = useState("");
+  const [metricsLikes, setMetricsLikes] = useState("");
+  const [metricsComments, setMetricsComments] = useState("");
+  const [savingMetrics, setSavingMetrics] = useState(false);
 
   // Settings modal
   const [showSettings, setShowSettings] = useState(false);
@@ -315,6 +325,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...idea,
+          email: data.user.email,
           profile: {
             name: data.user.linkedinName,
             headline: data.user.linkedinHeadline,
@@ -418,6 +429,36 @@ export default function Dashboard() {
       fetchDashboard(data.user.email);
     } catch (err) {
       console.error("Failed to save and publish", err);
+    }
+  };
+
+  const openMetricsEditor = (post: SavedPost) => {
+    setEditingMetrics(post.id);
+    setMetricsViews(String(post.views || 0));
+    setMetricsLikes(String(post.likes || 0));
+    setMetricsComments(String(post.comments || 0));
+  };
+
+  const saveMetrics = async (postId: number) => {
+    setSavingMetrics(true);
+    try {
+      const res = await fetch("/api/posts/save", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: postId,
+          views: parseInt(metricsViews) || 0,
+          likes: parseInt(metricsLikes) || 0,
+          comments: parseInt(metricsComments) || 0,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save metrics");
+      setEditingMetrics(null);
+      if (data) fetchDashboard(data.user.email);
+    } catch (err) {
+      console.error("Failed to save metrics", err);
+    } finally {
+      setSavingMetrics(false);
     }
   };
 
@@ -825,7 +866,35 @@ export default function Dashboard() {
                     </div>
                   </div>
                   {post.idea_title && <p className="text-white font-medium mb-1">{post.idea_title}</p>}
-                  <p className="text-gray-500 text-sm line-clamp-2">{post.post_content}</p>
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-2">{post.post_content}</p>
+
+                  {/* Metrics */}
+                  {editingMetrics === post.id ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="number" value={metricsViews} onChange={e => setMetricsViews(e.target.value)} placeholder="Views" className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
+                      <input type="number" value={metricsLikes} onChange={e => setMetricsLikes(e.target.value)} placeholder="Likes" className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
+                      <input type="number" value={metricsComments} onChange={e => setMetricsComments(e.target.value)} placeholder="Comments" className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
+                      <button onClick={() => saveMetrics(post.id)} disabled={savingMetrics} className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50">
+                        {savingMetrics ? "..." : "Save"}
+                      </button>
+                      <button onClick={() => setEditingMetrics(null)} className="px-2 py-1 text-gray-400 text-sm hover:text-white">
+                        x
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 mt-2">
+                      {(post.views > 0 || post.likes > 0 || post.comments > 0) ? (
+                        <>
+                          <span className="text-gray-400 text-xs">{post.views.toLocaleString()} views</span>
+                          <span className="text-gray-400 text-xs">{post.likes} likes</span>
+                          <span className="text-gray-400 text-xs">{post.comments} comments</span>
+                        </>
+                      ) : null}
+                      <button onClick={() => openMetricsEditor(post)} className="text-blue-400 text-xs hover:text-blue-300">
+                        {post.views > 0 ? "Edit stats" : "+ Add stats"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}

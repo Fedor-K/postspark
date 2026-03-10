@@ -133,4 +133,13 @@ export async function initDB() {
   await sql`
     CREATE INDEX IF NOT EXISTS idx_twitter_queue_user ON twitter_post_queue(user_id)
   `;
+
+  // Add performance tracking columns to saved_posts
+  try {
+    await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`;
+    await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`;
+    await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS comments INTEGER DEFAULT 0`;
+  } catch {
+    // Columns might already exist
+  }
 }
