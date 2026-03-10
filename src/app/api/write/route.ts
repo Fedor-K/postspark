@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { neon } from "@neondatabase/serverless";
 import { Platform } from "@/types";
 import { THREAD_SEPARATOR } from "@/lib/constants";
@@ -8,11 +7,6 @@ import { generateWithClaude } from "@/lib/anthropic";
 import { createTwitterPrompt, ProfileInfo } from "@/lib/twitter-prompts";
 
 const sql = neon(process.env.DATABASE_URL!);
-
-const openai = new OpenAI({
-  apiKey: process.env.ZAI_API_KEY,
-  baseURL: "https://api.z.ai/api/paas/v4"
-});
 
 function createLinkedInPrompt(
   title: string,
@@ -146,7 +140,6 @@ export async function POST(request: NextRequest) {
     const results = await Promise.all(
       tones.map(async (tone): Promise<string> => {
         if (platformTyped === 'twitter') {
-          // Use Claude for Twitter
           const twitterPrompt = createTwitterPrompt(
             title,
             description,
@@ -162,26 +155,18 @@ export async function POST(request: NextRequest) {
           );
           return generateWithClaude(twitterPrompt, { temperature: 0.8 });
         } else {
-          // Use Z.ai for LinkedIn
-          const completion = await openai.chat.completions.create({
-            model: "glm-4.5-air",
-            messages: [{
-              role: "user",
-              content: createLinkedInPrompt(
-                title,
-                description,
-                format,
-                tone,
-                profile,
-                userType || "solopreneur",
-                niche || "business",
-                targetAudience || "",
-                performanceContext
-              )
-            }],
-            temperature: 0.8,
-          });
-          return completion.choices[0]?.message?.content?.trim() || "Failed to generate this version";
+          const linkedinPrompt = createLinkedInPrompt(
+            title,
+            description,
+            format,
+            tone,
+            profile,
+            userType || "solopreneur",
+            niche || "business",
+            targetAudience || "",
+            performanceContext
+          );
+          return generateWithClaude(linkedinPrompt, { temperature: 0.8 });
         }
       })
     );

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApifyClient } from "apify-client";
-import OpenAI from "openai";
 import { neon } from "@neondatabase/serverless";
 import { sendEmail, generateWelcomeEmail } from "@/lib/email";
 import { Platform } from "@/types";
@@ -12,11 +11,6 @@ const sql = neon(process.env.DATABASE_URL!);
 
 const apify = new ApifyClient({
   token: process.env.APIFY_API_TOKEN,
-});
-
-const openai = new OpenAI({
-  apiKey: process.env.ZAI_API_KEY,
-  baseURL: "https://api.z.ai/api/paas/v4",
 });
 
 interface LinkedInProfile {
@@ -411,21 +405,11 @@ Return ONLY valid JSON in this exact format:
 
     let content: string;
 
-    if (platform === 'twitter') {
-      console.log("Calling Claude API for Twitter...");
-      content = await generateWithClaude(prompt, {
-        temperature: 0.8,
-        maxTokens: 4096,
-      });
-    } else {
-      console.log("Calling Z.ai API for LinkedIn...");
-      const completion = await openai.chat.completions.create({
-        model: "glm-4.5-air",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-      });
-      content = completion.choices[0]?.message?.content || "";
-    }
+    console.log(`Calling Claude API for ${platform}...`);
+    content = await generateWithClaude(prompt, {
+      temperature: 0.8,
+      maxTokens: 4096,
+    });
 
     console.log("AI response length:", content?.length);
 
