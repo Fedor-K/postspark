@@ -95,16 +95,16 @@ export async function POST(request: NextRequest) {
         const user = await sql`SELECT id FROM users WHERE email = ${email}`;
         if (user.length > 0) {
           const topPosts = await sql`
-            SELECT idea_title, post_content, views, likes, comments, tone, published_at
+            SELECT idea_title, post_content, views, likes, comments, tone, published_at, stats_updated_at
             FROM saved_posts
             WHERE user_id = ${user[0].id} AND published_at IS NOT NULL AND views > 0
             ORDER BY views DESC
             LIMIT 3
           `;
           if (topPosts.length > 0) {
-            const now = new Date();
             performanceContext = `\n\nTOP PERFORMING POSTS BY THIS AUTHOR (write in a similar style):\n${topPosts.map((p, i) => {
-              const days = Math.max(1, Math.round((now.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24)));
+              const endDate = p.stats_updated_at ? new Date(p.stats_updated_at) : new Date();
+              const days = Math.max(1, Math.round((endDate.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24)));
               const viewsPerDay = Math.round(p.views / days);
               return `${i + 1}. "${p.idea_title}" (${p.views} views in ${days} days, ~${viewsPerDay}/day, ${p.likes} likes) — Tone: ${p.tone}\nContent preview: ${p.post_content.substring(0, 200)}...`;
             }).join('\n\n')}\nPrioritize patterns from posts with higher views/day.\n`;

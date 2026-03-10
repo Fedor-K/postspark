@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`;
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`;
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS comments INTEGER DEFAULT 0`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS stats_updated_at TIMESTAMP`;
     } catch {
       // Columns might already exist
     }

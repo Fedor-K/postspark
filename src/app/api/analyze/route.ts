@@ -306,16 +306,16 @@ export async function POST(request: NextRequest) {
       const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
       if (existingUser.length > 0) {
         const topPosts = await sql`
-          SELECT idea_title, views, likes, comments, tone, platform as post_platform, published_at
+          SELECT idea_title, views, likes, comments, tone, platform as post_platform, published_at, stats_updated_at
           FROM saved_posts
           WHERE user_id = ${existingUser[0].id} AND published_at IS NOT NULL AND views > 0
           ORDER BY views DESC
           LIMIT 5
         `;
         if (topPosts.length > 0) {
-          const now = new Date();
           performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts. Generate ideas similar in style, angle, and format to the top performers:\n${topPosts.map((p, i) => {
-            const days = Math.max(1, Math.round((now.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24)));
+            const endDate = p.stats_updated_at ? new Date(p.stats_updated_at) : new Date();
+            const days = Math.max(1, Math.round((endDate.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24)));
             const viewsPerDay = Math.round(p.views / days);
             return `${i + 1}. "${p.idea_title}" — ${p.views} views in ${days} days (~${viewsPerDay}/day), ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform})`;
           }).join('\n')}\nPosts with higher views/day ratio indicate stronger content patterns. Prioritize those patterns.\n`;

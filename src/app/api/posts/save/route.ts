@@ -75,6 +75,7 @@ export async function PATCH(request: NextRequest) {
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`;
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`;
       await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS comments INTEGER DEFAULT 0`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS stats_updated_at TIMESTAMP`;
     } catch {
       // Columns might already exist
     }
@@ -85,7 +86,8 @@ export async function PATCH(request: NextRequest) {
         UPDATE saved_posts
         SET views = COALESCE(${views ?? null}, views),
             likes = COALESCE(${likes ?? null}, likes),
-            comments = COALESCE(${comments ?? null}, comments)
+            comments = COALESCE(${comments ?? null}, comments),
+            stats_updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `;
