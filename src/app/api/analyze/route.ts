@@ -306,14 +306,19 @@ export async function POST(request: NextRequest) {
       const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
       if (existingUser.length > 0) {
         const topPosts = await sql`
-          SELECT idea_title, views, likes, comments, tone, platform as post_platform
+          SELECT idea_title, views, likes, comments, tone, platform as post_platform, published_at
           FROM saved_posts
           WHERE user_id = ${existingUser[0].id} AND published_at IS NOT NULL AND views > 0
           ORDER BY views DESC
           LIMIT 5
         `;
         if (topPosts.length > 0) {
-          performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts. Generate ideas similar in style, angle, and format to the top performers:\n${topPosts.map((p, i) => `${i + 1}. "${p.idea_title}" — ${p.views} views, ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform})`).join('\n')}\nAnalyze what made these posts successful and apply those patterns to the new ideas.\n`;
+          const now = new Date();
+          performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts. Generate ideas similar in style, angle, and format to the top performers:\n${topPosts.map((p, i) => {
+            const days = Math.max(1, Math.round((now.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24)));
+            const viewsPerDay = Math.round(p.views / days);
+            return `${i + 1}. "${p.idea_title}" — ${p.views} views in ${days} days (~${viewsPerDay}/day), ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform})`;
+          }).join('\n')}\nPosts with higher views/day ratio indicate stronger content patterns. Prioritize those patterns.\n`;
         }
       }
     } catch (e) {
