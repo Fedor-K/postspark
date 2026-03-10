@@ -12,6 +12,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
+    // Ensure metrics columns exist
+    try {
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS likes INTEGER DEFAULT 0`;
+      await sql`ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS comments INTEGER DEFAULT 0`;
+    } catch {
+      // Columns might already exist
+    }
+
     // Get user
     const users = await sql`SELECT * FROM users WHERE email = ${email}`;
     
