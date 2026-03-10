@@ -129,7 +129,7 @@ async function saveUserAndGeneration(
   return { user: user[0], isNew };
 }
 
-function cleanAndParseJSON(text: string): { niche: string; topics: Topic[] } {
+function cleanAndParseJSON(text: string): { niche: string; topics: Topic[]; timing?: string } {
   console.log("Parsing AI response...");
   
   let cleaned = text
@@ -313,12 +313,16 @@ export async function POST(request: NextRequest) {
           LIMIT 5
         `;
         if (topPosts.length > 0) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts. Generate ideas similar in style, angle, and format to the top performers:\n${topPosts.map((p, i) => {
+            const pubDate = new Date(p.published_at);
             const endDate = p.stats_updated_at ? new Date(p.stats_updated_at) : new Date();
-            const days = Math.max(1, Math.round((endDate.getTime() - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24)));
+            const days = Math.max(1, Math.round((endDate.getTime() - pubDate.getTime()) / (1000 * 60 * 60 * 24)));
             const viewsPerDay = Math.round(p.views / days);
-            return `${i + 1}. "${p.idea_title}" — ${p.views} views in ${days} days (~${viewsPerDay}/day), ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform})`;
-          }).join('\n')}\nPosts with higher views/day ratio indicate stronger content patterns. Prioritize those patterns.\n`;
+            const dayOfWeek = dayNames[pubDate.getUTCDay()];
+            const timeOfDay = pubDate.toISOString().slice(11, 16) + ' UTC';
+            return `${i + 1}. "${p.idea_title}" — ${p.views} views in ${days} days (~${viewsPerDay}/day), ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform}, posted: ${dayOfWeek} at ${timeOfDay})`;
+          }).join('\n')}\nPosts with higher views/day ratio indicate stronger content patterns. Prioritize those patterns.\nBased on the posting day/time data above, suggest the BEST day and time to publish the next post as a brief note at the end of your response, inside the JSON as a "timing" field like: "timing":"Best to post on [day] around [time] based on your data".\n`;
         }
       }
     } catch (e) {
@@ -476,6 +480,7 @@ Return ONLY valid JSON in this exact format:
       niche: aiResponse.niche,
       topics: topics,
       platform: platform,
+      timing: aiResponse.timing || null,
     });
   } catch (error: unknown) {
     console.error("Analyze error:", error);

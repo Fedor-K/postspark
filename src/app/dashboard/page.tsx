@@ -109,6 +109,7 @@ export default function Dashboard() {
 
   // Generate state
   const [generating, setGenerating] = useState(false);
+  const [timingTip, setTimingTip] = useState<string | null>(null);
 
   // Current ideas being worked on
   const [currentIdeas, setCurrentIdeas] = useState<Idea[]>([]);
@@ -308,6 +309,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(result.error);
 
       setCurrentIdeas(result.topics || []);
+      setTimingTip(result.timing || null);
       fetchDashboard(data.user.email);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to generate ideas");
@@ -692,6 +694,13 @@ export default function Dashboard() {
             Posted
           </button>
         </div>
+
+        {/* Timing recommendation */}
+        {timingTip && activeView === 'ideas' && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2 mb-3">
+            <p className="text-blue-300 text-sm">{timingTip}</p>
+          </div>
+        )}
 
         {/* Ideas View */}
         {activeView === 'ideas' && (
