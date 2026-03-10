@@ -23,6 +23,7 @@ interface SavedPost {
   views: number;
   likes: number;
   comments: number;
+  stats_updated_at: string | null;
 }
 
 interface Idea {
@@ -870,7 +871,7 @@ export default function Dashboard() {
 
                   {/* Metrics */}
                   {editingMetrics === post.id ? (
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
                       <input type="number" value={metricsViews} onChange={e => setMetricsViews(e.target.value)} placeholder="Views" className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
                       <input type="number" value={metricsLikes} onChange={e => setMetricsLikes(e.target.value)} placeholder="Likes" className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
                       <input type="number" value={metricsComments} onChange={e => setMetricsComments(e.target.value)} placeholder="Comments" className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
@@ -888,6 +889,7 @@ export default function Dashboard() {
                           <span className="text-gray-400 text-xs">{post.views.toLocaleString()} views</span>
                           <span className="text-gray-400 text-xs">{post.likes} likes</span>
                           <span className="text-gray-400 text-xs">{post.comments} comments</span>
+                          {post.stats_updated_at && <span className="text-gray-600 text-xs">updated {formatDate(post.stats_updated_at)}</span>}
                         </>
                       ) : null}
                       <button onClick={() => openMetricsEditor(post)} className="text-blue-400 text-xs hover:text-blue-300">
