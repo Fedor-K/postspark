@@ -104,8 +104,7 @@ export default function Dashboard() {
   // Platform state
   const [platform, setPlatform] = useState<Platform>('linkedin');
 
-  // Active view: 'ideas' or 'published'
-  const [activeView, setActiveView] = useState<'ideas' | 'published'>('ideas');
+  const activeView = 'ideas';
 
   // Generate state
   const [generating, setGenerating] = useState(false);
@@ -702,12 +701,7 @@ export default function Dashboard() {
           >
             Ideas
           </button>
-          <button
-            onClick={() => setActiveView('published')}
-            className={`pb-3 font-medium transition-all whitespace-nowrap text-sm sm:text-base ${activeView === 'published' ? 'text-white border-b-2 border-green-400' : 'text-gray-500 hover:text-gray-300'}`}
-          >
-            Posted
-          </button>
+
           <Link
             href="/my-posts"
             className="pb-3 font-medium text-gray-500 hover:text-gray-300 transition-all whitespace-nowrap text-sm sm:text-base"
@@ -1006,59 +1000,7 @@ export default function Dashboard() {
         )}
 
         {/* Published Posts View */}
-        {activeView === 'published' && (
-          <div className="space-y-3">
-            {data.savedPosts.filter(p => p.published_at).length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No published posts yet</p>
-              </div>
-            ) : (
-              data.savedPosts.filter(p => p.published_at).map((post) => (
-                <div key={post.id} className="border-b border-white/10 pb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-500 text-sm">{formatDate(post.published_at!)}</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => copyPost(`published-${post.id}`, post.post_content)} className="px-3 py-1 bg-white/10 text-white text-sm rounded hover:bg-white/20">
-                        {copied === `published-${post.id}` ? "Copied!" : "Copy"}
-                      </button>
-                    </div>
-                  </div>
-                  {post.idea_title && <p className="text-white font-medium mb-1">{post.idea_title}</p>}
-                  <p className="text-gray-500 text-sm line-clamp-2 mb-2">{post.post_content}</p>
 
-                  {/* Metrics */}
-                  {editingMetrics === post.id ? (
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <input type="number" value={metricsViews} onChange={e => setMetricsViews(e.target.value)} placeholder="Views" className="w-24 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
-                      <input type="number" value={metricsLikes} onChange={e => setMetricsLikes(e.target.value)} placeholder="Likes" className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
-                      <input type="number" value={metricsComments} onChange={e => setMetricsComments(e.target.value)} placeholder="Comments" className="w-20 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm" />
-                      <button onClick={() => saveMetrics(post.id)} disabled={savingMetrics} className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50">
-                        {savingMetrics ? "..." : "Save"}
-                      </button>
-                      <button onClick={() => setEditingMetrics(null)} className="px-2 py-1 text-gray-400 text-sm hover:text-white">
-                        x
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 mt-2">
-                      {(post.views > 0 || post.likes > 0 || post.comments > 0) ? (
-                        <>
-                          <span className="text-gray-400 text-xs">{post.views.toLocaleString()} views</span>
-                          <span className="text-gray-400 text-xs">{post.likes} likes</span>
-                          <span className="text-gray-400 text-xs">{post.comments} comments</span>
-                          {post.stats_updated_at && <span className="text-gray-600 text-xs">updated {formatDate(post.stats_updated_at)}</span>}
-                        </>
-                      ) : null}
-                      <button onClick={() => openMetricsEditor(post)} className="text-blue-400 text-xs hover:text-blue-300">
-                        {post.views > 0 ? "Edit stats" : "+ Add stats"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        )}
       </div>
 
       {/* Edit Modal */}
