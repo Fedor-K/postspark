@@ -12,7 +12,7 @@ export default function PlatformSelector({ platform, onChange }: PlatformSelecto
   const platforms: Platform[] = ['linkedin', 'twitter'];
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1 sm:gap-2">
       {platforms.map((p) => {
         const config = PLATFORM_CONFIGS[p];
         const isSelected = platform === p;
@@ -21,7 +21,8 @@ export default function PlatformSelector({ platform, onChange }: PlatformSelecto
           <button
             key={p}
             onClick={() => onChange(p)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            title={config.name}
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               isSelected
                 ? p === 'linkedin'
                   ? 'bg-[#0a66c2] text-white'
@@ -30,7 +31,8 @@ export default function PlatformSelector({ platform, onChange }: PlatformSelecto
             }`}
           >
             <span className="text-base">{config.icon}</span>
-            <span>{config.name}</span>
+            {/* Show name only on sm+ screens */}
+            <span className="hidden sm:inline">{config.name}</span>
           </button>
         );
       })}

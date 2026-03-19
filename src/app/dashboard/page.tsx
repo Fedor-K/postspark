@@ -649,53 +649,60 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">P</span>
+        {/* Header — responsive */}
+        <div className="flex items-center justify-between mb-6 gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg sm:text-xl">P</span>
             </div>
-            <span className="text-2xl font-bold text-white">PostSpark</span>
+            <span className="text-xl sm:text-2xl font-bold text-white">PostSpark</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3 flex-wrap justify-end">
             <PlatformSelector platform={platform} onChange={handlePlatformChange} />
             <button
               onClick={generateNewIdeas}
               disabled={generating}
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50"
+              className="px-3 py-2 sm:px-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 text-sm sm:text-base whitespace-nowrap"
             >
               {generating ? "..." : "+ Generate"}
             </button>
             <button
               onClick={openSettings}
-              className="px-3 py-2 text-gray-400 hover:text-white"
+              className="p-2 text-gray-400 hover:text-white"
+              title="Settings"
             >
               ⚙️
             </button>
-            <button onClick={handleLogout} disabled={loggingOut} className="px-3 py-2 text-gray-400 hover:text-white">
-              {loggingOut ? "..." : "Logout"}
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="p-2 text-gray-400 hover:text-white text-sm"
+              title="Logout"
+            >
+              {loggingOut ? "..." : "↪"}
             </button>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-6 mb-6 border-b border-white/10">
+        <div className="flex gap-4 sm:gap-6 mb-6 border-b border-white/10 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveView('ideas')}
-            className={`pb-3 font-medium transition-all ${activeView === 'ideas' ? 'text-white border-b-2 border-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`pb-3 font-medium transition-all whitespace-nowrap text-sm sm:text-base ${activeView === 'ideas' ? 'text-white border-b-2 border-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
             Ideas
           </button>
           <button
             onClick={() => setActiveView('published')}
-            className={`pb-3 font-medium transition-all ${activeView === 'published' ? 'text-white border-b-2 border-green-400' : 'text-gray-500 hover:text-gray-300'}`}
+            className={`pb-3 font-medium transition-all whitespace-nowrap text-sm sm:text-base ${activeView === 'published' ? 'text-white border-b-2 border-green-400' : 'text-gray-500 hover:text-gray-300'}`}
           >
             Posted
           </button>
           <Link
             href="/my-posts"
-            className="pb-3 font-medium text-gray-500 hover:text-gray-300 transition-all"
+            className="pb-3 font-medium text-gray-500 hover:text-gray-300 transition-all whitespace-nowrap text-sm sm:text-base"
           >
             📈 My Posts
           </Link>
