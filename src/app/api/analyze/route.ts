@@ -314,15 +314,27 @@ export async function POST(request: NextRequest) {
         `;
         if (topPosts.length > 0) {
           const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts. Generate ideas similar in style, angle, and format to the top performers:\n${topPosts.map((p, i) => {
+
+          // Analyze format patterns from top posts
+          const formatCounts: Record<string, number> = {};
+          topPosts.forEach(p => {
+            const tone = p.tone || 'unknown';
+            formatCounts[tone] = (formatCounts[tone] || 0) + 1;
+          });
+          const dominantFormats = Object.entries(formatCounts)
+            .sort(([,a],[,b]) => b - a)
+            .map(([f, c]) => `${f} (${c}x)`)
+            .join(', ');
+
+          performanceContext = `\n\nPERFORMANCE DATA — These are the author's best-performing posts:\n${topPosts.map((p, i) => {
             const pubDate = new Date(p.published_at);
             const endDate = p.stats_updated_at ? new Date(p.stats_updated_at) : new Date();
             const days = Math.max(1, Math.round((endDate.getTime() - pubDate.getTime()) / (1000 * 60 * 60 * 24)));
             const viewsPerDay = Math.round(p.views / days);
             const dayOfWeek = dayNames[pubDate.getUTCDay()];
             const timeOfDay = pubDate.toISOString().slice(11, 16) + ' UTC';
-            return `${i + 1}. "${p.idea_title}" — ${p.views} views in ${days} days (~${viewsPerDay}/day), ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, platform: ${p.post_platform}, posted: ${dayOfWeek} at ${timeOfDay})`;
-          }).join('\n')}\nPosts with higher views/day ratio indicate stronger content patterns. Prioritize those patterns.\nBased on the posting day/time data above, suggest the BEST day and time to publish the next post as a brief note at the end of your response, inside the JSON as a "timing" field like: "timing":"Best to post on [day] around [time] based on your data".\n`;
+            return `${i + 1}. "${p.idea_title}" — ${p.views} views in ${days} days (~${viewsPerDay}/day), ${p.likes} likes, ${p.comments} comments (tone: ${p.tone}, posted: ${dayOfWeek} at ${timeOfDay})`;
+          }).join('\n')}\n\nDominant formats so far: ${dominantFormats}.\nPosts with higher views/day ratio indicate stronger content patterns — use these as inspiration but DO NOT copy.\n\nFORMAT DIVERSITY RULE: Generate a MIX of formats. Do NOT repeat the same format more than twice in 10 ideas. Use all of these formats:\n- personal-story: "I [did X] for [time/amount]. Here is what happened:" — first-person narrative with specific numbers\n- hot-take: Controversial opinion that challenges common wisdom and sparks debate\n- how-to: Step-by-step practical advice with numbered steps\n- data-post: Surprising stats, numbers, or research findings with a strong hook\n- question: Open-ended question to engage audience and drive comments\n- case-study: "My client went from [A] to [B]. Here is how:" — result-driven story\n- carousel: "X things about [topic]" — works best as a multi-slide image post\n\nBased on the posting day/time data above, suggest the BEST day and time to publish the next post inside the JSON as a "timing" field: "timing":"Best to post on [day] around [time] based on your data".\n`;
         }
       }
     } catch (e) {
@@ -392,7 +404,16 @@ Generate 10 LinkedIn post ideas that will help this ${userTypeLabels[userType]} 
 REQUIREMENTS FOR EACH IDEA:
 1. Hook (title): The scroll-stopping first line. Must create curiosity or tension.
 2. Description: Brief summary of what the post is about
-3. Format: story, tips, opinion, case-study, confession, or how-to
+3. Format: MUST be one of the formats below
+
+AVAILABLE FORMATS:
+- personal-story: "I [did X] for [time/amount]. Here is what happened:" — first-person with specific numbers
+- hot-take: Controversial opinion that challenges common wisdom and sparks debate
+- how-to: Step-by-step practical advice with numbered steps
+- data-post: Surprising stats, numbers, or research with a strong hook
+- question: Open-ended question to engage audience and drive comments
+- case-study: "My client went from [A] to [B]. Here is how:" — result-driven story
+- carousel: "X things about [topic]" — best formatted as a multi-slide image post
 
 HOOK FORMULAS THAT WORK:
 - I [did X]. [Unexpected result].
@@ -406,10 +427,11 @@ IMPORTANT:
 - Make hooks SPECIFIC with numbers and results
 - Focus on topics that attract CLIENTS
 - Each idea should showcase expertise without being salesy
-- Vary the formats across the 10 ideas
+- MUST include at least one idea from EACH format type above
+- Do NOT use the same format more than twice in 10 ideas
 ${performanceContext}
 Return ONLY valid JSON in this exact format:
-{"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"tips"}]}`;
+{"niche":"detected niche","topics":[{"title":"hook line","description":"brief description","format":"personal-story"}]}`;
     }
 
     let content: string;

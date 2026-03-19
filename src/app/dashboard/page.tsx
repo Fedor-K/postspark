@@ -693,6 +693,12 @@ export default function Dashboard() {
           >
             Posted
           </button>
+          <Link
+            href="/my-posts"
+            className="pb-3 font-medium text-gray-500 hover:text-gray-300 transition-all"
+          >
+            📈 My Posts
+          </Link>
         </div>
 
         {/* Timing recommendation */}
