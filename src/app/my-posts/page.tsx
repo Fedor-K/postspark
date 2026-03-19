@@ -168,24 +168,49 @@ export default function MyPostsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
-      {/* Header */}
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-4xl">
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg sm:text-xl">P</span>
-              </div>
-              <span className="text-xl sm:text-2xl font-bold text-white">PostSpark</span>
+      {/* Header — same as Dashboard */}
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
+        <div className="flex items-center justify-between mb-6 gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg sm:text-xl">P</span>
+            </div>
+            <span className="text-xl sm:text-2xl font-bold text-white">PostSpark</span>
+          </Link>
+          <div className="flex items-center gap-1 sm:gap-3">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-3 py-2 sm:px-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 text-sm sm:text-base whitespace-nowrap"
+            >
+              + Add Post
+            </button>
+            <Link
+              href="/dashboard"
+              className="p-2 text-gray-400 hover:text-white"
+              title="Back to Dashboard"
+            >
+              ↪
             </Link>
-            <span className="text-gray-500 text-sm hidden sm:inline">/ My Posts</span>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className={btnPrimary}
+        </div>
+
+        {/* Tab Navigation — same as Dashboard */}
+        <div className="flex gap-4 sm:gap-6 mb-6 border-b border-white/10 overflow-x-auto scrollbar-none">
+          <Link
+            href="/dashboard"
+            className="pb-3 font-medium text-gray-500 hover:text-gray-300 transition-all whitespace-nowrap text-sm sm:text-base"
           >
-            + Add Post
-          </button>
+            Ideas
+          </Link>
+          <Link
+            href="/dashboard"
+            className="pb-3 font-medium text-gray-500 hover:text-gray-300 transition-all whitespace-nowrap text-sm sm:text-base"
+          >
+            Posted
+          </Link>
+          <span className="pb-3 font-medium text-white border-b-2 border-blue-400 whitespace-nowrap text-sm sm:text-base">
+            📈 My Posts
+          </span>
         </div>
 
         {error && (
@@ -282,8 +307,6 @@ export default function MyPostsPage() {
           </section>
         )}
 
-        {/* Footer */}
-        <p className="text-center text-gray-600 text-sm mt-12">PostSpark - Content for Solopreneurs &amp; Coaches</p>
       </div>
 
       {/* Update Stats Modal */}
