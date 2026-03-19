@@ -111,6 +111,14 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [timingTip, setTimingTip] = useState<string | null>(null);
 
+  // Daily experience prompt
+  const [showDailyPrompt, setShowDailyPrompt] = useState(false);
+  const [dailyExperience, setDailyExperience] = useState("");
+  const [generatingFromExp, setGeneratingFromExp] = useState(false);
+  const [expVersions, setExpVersions] = useState<{ story: string; insight: string; contrast: string } | null>(null);
+  const [expTone, setExpTone] = useState<"story" | "insight" | "contrast">("story");
+  const [expSuggestedHook, setExpSuggestedHook] = useState("");
+
   // Current ideas being worked on
   const [currentIdeas, setCurrentIdeas] = useState<Idea[]>([]);
 
@@ -712,6 +720,133 @@ export default function Dashboard() {
         {timingTip && activeView === 'ideas' && (
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2 mb-3">
             <p className="text-blue-300 text-sm">{timingTip}</p>
+          </div>
+        )}
+
+        {/* Daily Experience Prompt */}
+        {activeView === 'ideas' && (
+          <div className="mb-4">
+            {!showDailyPrompt ? (
+              <button
+                onClick={() => setShowDailyPrompt(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl transition text-left group"
+              >
+                <span className="text-xl">✍️</span>
+                <div className="flex-1">
+                  <p className="text-white text-sm font-medium">What happened today?</p>
+                  <p className="text-gray-500 text-xs">Turn your real experience into a post</p>
+                </div>
+                <span className="text-gray-500 group-hover:text-gray-300 text-xs transition">→</span>
+              </button>
+            ) : (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-white font-medium text-sm">What happened today?</p>
+                    <p className="text-gray-500 text-xs mt-0.5">Share a raw observation, conversation, win, or fail — anything real</p>
+                  </div>
+                  <button onClick={() => { setShowDailyPrompt(false); setExpVersions(null); setDailyExperience(""); }} className="text-gray-500 hover:text-gray-300 text-lg">×</button>
+                </div>
+
+                {!expVersions ? (
+                  <>
+                    <textarea
+                      value={dailyExperience}
+                      onChange={(e) => setDailyExperience(e.target.value)}
+                      placeholder="e.g. A client told me they almost didn't hire us because our website looked outdated. We closed the deal anyway — because of one line in our proposal..."
+                      rows={4}
+                      className="w-full bg-white/10 border border-white/15 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-400 resize-none mb-3"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!dailyExperience.trim() || !data?.user?.email) return;
+                        setGeneratingFromExp(true);
+                        try {
+                          const res = await fetch("/api/posts/from-experience", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email: data.user.email, experience: dailyExperience, platform }),
+                          });
+                          const result = await res.json();
+                          if (res.ok) {
+                            setExpVersions(result.versions);
+                            setExpSuggestedHook(result.suggested_hook || "");
+                            setExpTone("story");
+                          }
+                        } finally {
+                          setGeneratingFromExp(false);
+                        }
+                      }}
+                      disabled={generatingFromExp || !dailyExperience.trim()}
+                      className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 transition text-sm"
+                    >
+                      {generatingFromExp ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Writing your post...
+                        </span>
+                      ) : "→ Turn into a post"}
+                    </button>
+                  </>
+                ) : (
+                  <div>
+                    {expSuggestedHook && (
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 mb-3">
+                        <p className="text-blue-300 text-xs font-medium">💡 Suggested hook</p>
+                        <p className="text-blue-200 text-sm mt-0.5">{expSuggestedHook}</p>
+                      </div>
+                    )}
+                    {/* Tone tabs */}
+                    <div className="flex gap-2 mb-3">
+                      {(["story", "insight", "contrast"] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setExpTone(t)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition capitalize ${expTone === t ? "bg-blue-500 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
+                        >
+                          {t === "story" ? "📖 Story" : t === "insight" ? "💡 Insight" : "⚡ Contrast"}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Post text */}
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-3 max-h-64 overflow-y-auto">
+                      <p className="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{expVersions[expTone]}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setExpVersions(null); setDailyExperience(""); }}
+                        className="flex-1 border border-white/15 text-gray-400 hover:text-white rounded-lg py-2 text-sm transition"
+                      >
+                        ← Rewrite
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!data?.user?.email) return;
+                          await fetch("/api/posts/save", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              email: data.user.email,
+                              content: expVersions[expTone],
+                              tone: expTone,
+                              title: expSuggestedHook || "From experience",
+                              platform,
+                            }),
+                          });
+                          setShowDailyPrompt(false);
+                          setExpVersions(null);
+                          setDailyExperience("");
+                          if (data?.user?.email) fetchDashboard(data.user.email);
+                        }}
+                        className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 text-white rounded-lg py-2 text-sm font-medium hover:opacity-90 transition"
+                      >
+                        Save post →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
